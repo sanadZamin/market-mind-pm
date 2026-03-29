@@ -13,6 +13,22 @@ const OLLAMA_MODEL    = process.env.OLLAMA_MODEL    ?? "qwen3.5:0.8b";
 
 router.use(requireAuth as any);
 
+/** Normalise any date value to "YYYY-MM-DD" or null */
+function toDateStr(val: unknown): string | null {
+  if (!val) return null;
+  let d: Date;
+  if (val instanceof Date) {
+    d = val;
+  } else {
+    const s = String(val).trim();
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already correct format
+    d = new Date(s);
+  }
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
 type MappedTask = {
   title: string;
   description?: string;
@@ -115,8 +131,15 @@ Return ONLY a valid JSON array of task objects with these exact fields: title, d
         const status      = findVal("status", "state", "stage") ?? "todo";
         const priority    = findVal("priority", "urgency", "severity") ?? "medium";
         const assignee    = findVal("assignee", "assigned", "owner", "responsible", "person") ?? null;
-        const startDate   = findVal("start", "begin", "from", "start_date", "startdate") ?? null;
-        const dueDate     = findVal("due", "deadline", "end", "finish", "due_date", "duedate") ?? null;
+        // Find raw date values (may be Date objects from cellDates:true)
+        const findRaw = (...keys: string[]) => {
+          for (const [k, v] of entries) {
+            if (keys.some(key => k.toLowerCase().includes(key)) && v !== "") return v;
+          }
+          return undefined;
+        };
+        const startDate = toDateStr(findRaw("start", "begin", "from", "start_date", "startdate"));
+        const dueDate   = toDateStr(findRaw("due", "deadline", "end", "finish", "due_date", "duedate"));
 
         return { title, description, status, priority, assignee, startDate, dueDate };
       });
@@ -128,8 +151,8 @@ Return ONLY a valid JSON array of task objects with these exact fields: title, d
       status:      ["todo", "in_progress", "in_review", "done"].includes(t.status) ? t.status : "todo",
       priority:    ["low", "medium", "high", "urgent"].includes(t.priority) ? t.priority : "medium",
       assignee:    t.assignee ? String(t.assignee).trim() : null,
-      startDate:   t.startDate && t.startDate !== "" ? String(t.startDate) : null,
-      dueDate:     t.dueDate && t.dueDate !== "" ? String(t.dueDate) : null,
+      startDate:   toDateStr(t.startDate),
+      dueDate:     toDateStr(t.dueDate),
     }));
 
     res.json({ tasks: cleanedTasks, llmError, rawRows: llmError ? rows : undefined });
@@ -191,8 +214,8 @@ router.post("/projects/:projectId/tasks/bulk", async (req: AuthenticatedRequest,
       status,
       priority,
       assigneeId,
-      startDate:   t.startDate ?? null,
-      dueDate:     t.dueDate ?? null,
+      startDate:   toDateStr(t.startDate),
+      dueDate:     toDateStr(t.dueDate),
       tags:        [] as string[],
       projectId,
       reporterId:  req.userId!,
