@@ -19,6 +19,7 @@ type MappedTask = {
   status: string;
   priority: string;
   assignee?: string | null;
+  startDate?: string | null;
   dueDate?: string | null;
 };
 
@@ -60,12 +61,13 @@ Map each row in the full dataset to a task with these fields:
 - status (string): one of "todo", "in_progress", "in_review", "done" — infer from any status/state column, default to "todo"
 - priority (string): one of "low", "medium", "high", "urgent" — infer from any priority column, default to "medium"
 - assignee (string, optional): the name or email of the person assigned to this task, if present in the data, otherwise null
+- startDate (string, optional): ISO date string YYYY-MM-DD if a start date is present, otherwise null
 - dueDate (string, optional): ISO date string YYYY-MM-DD if a due/deadline date is present, otherwise null
 
 Here is the FULL dataset:
 ${JSON.stringify(rows, null, 2)}
 
-Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, dueDate. No explanation, no markdown, just the JSON array.`;
+Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, startDate, dueDate. No explanation, no markdown, just the JSON array.`;
 
     let mappedTasks: MappedTask[] = [];
     let llmError: string | null = null;
@@ -113,9 +115,10 @@ Return ONLY a valid JSON array of task objects with these exact fields: title, d
         const status      = findVal("status", "state", "stage") ?? "todo";
         const priority    = findVal("priority", "urgency", "severity") ?? "medium";
         const assignee    = findVal("assignee", "assigned", "owner", "responsible", "person") ?? null;
-        const dueDate     = findVal("due", "deadline", "date", "end") ?? null;
+        const startDate   = findVal("start", "begin", "from", "start_date", "startdate") ?? null;
+        const dueDate     = findVal("due", "deadline", "end", "finish", "due_date", "duedate") ?? null;
 
-        return { title, description, status, priority, assignee, dueDate };
+        return { title, description, status, priority, assignee, startDate, dueDate };
       });
     }
 
@@ -125,6 +128,7 @@ Return ONLY a valid JSON array of task objects with these exact fields: title, d
       status:      ["todo", "in_progress", "in_review", "done"].includes(t.status) ? t.status : "todo",
       priority:    ["low", "medium", "high", "urgent"].includes(t.priority) ? t.priority : "medium",
       assignee:    t.assignee ? String(t.assignee).trim() : null,
+      startDate:   t.startDate && t.startDate !== "" ? String(t.startDate) : null,
       dueDate:     t.dueDate && t.dueDate !== "" ? String(t.dueDate) : null,
     }));
 
@@ -138,6 +142,7 @@ type BulkTaskInput = {
   status?: string;
   priority?: string;
   assignee?: string | null;
+  startDate?: string | null;
   dueDate?: string | null;
 };
 
@@ -186,6 +191,7 @@ router.post("/projects/:projectId/tasks/bulk", async (req: AuthenticatedRequest,
       status,
       priority,
       assigneeId,
+      startDate:   t.startDate ?? null,
       dueDate:     t.dueDate ?? null,
       tags:        [] as string[],
       projectId,

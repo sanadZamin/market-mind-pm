@@ -14,6 +14,7 @@ type PreviewTask = {
   status: string;
   priority: string;
   assignee?: string | null;
+  startDate?: string | null;
   dueDate?: string | null;
 };
 
@@ -271,6 +272,7 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
                         <th className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">Status</th>
                         <th className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">Priority</th>
                         <th className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">Assignee</th>
+                        <th className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">Start Date</th>
                         <th className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">Due Date</th>
                       </tr>
                     </thead>
@@ -302,6 +304,9 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
                             ) : (
                               <span className="text-muted-foreground/50 text-xs">—</span>
                             )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {task.startDate ? task.startDate : "—"}
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">
                             {task.dueDate ? task.dueDate : "—"}
