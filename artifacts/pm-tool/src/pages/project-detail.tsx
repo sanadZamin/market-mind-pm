@@ -16,12 +16,14 @@ import {
   useListTaskDependencies,
   useAddTaskDependency,
   useRemoveTaskDependency,
+  useDeleteTask,
   updateTask,
   addTaskDependency,
   createTask,
   createSubtask,
   createComment,
   removeTaskDependency,
+  deleteTask,
   listSubtasks,
   Task,
   User,
@@ -38,6 +40,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,7 +48,7 @@ import { format, differenceInDays, addDays, startOfDay, isPast, isToday } from "
 import {
   Plus, List, Trello, CalendarDays, MoreHorizontal, MessageSquare,
   Clock, AlignLeft, Calendar as CalendarIcon, GitBranch, User as UserIcon,
-  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet
+  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useForm, Controller } from "react-hook-form";
@@ -1220,14 +1223,27 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
   const subtaskMutation   = useCreateSubtask();
   const addDepMutation    = useAddTaskDependency();
   const removeDepMutation = useRemoveTaskDependency();
+  const deleteMutation    = useDeleteTask();
   const queryClient       = useQueryClient();
   const { toast }         = useToast();
 
-  const [commentText, setCommentText]         = useState("");
-  const [newSubtaskTitle, setNewSubtaskTitle]   = useState("");
-  const [newSubtaskDueDate, setNewSubtaskDueDate] = useState("");
-  const [showSubtaskInput, setShowSubtaskInput] = useState(false);
-  const [selectedBlockerId, setSelectedBlockerId] = useState<string>("");
+  const [commentText, setCommentText]             = useState("");
+  const [newSubtaskTitle, setNewSubtaskTitle]       = useState("");
+  const [newSubtaskDueDate, setNewSubtaskDueDate]   = useState("");
+  const [showSubtaskInput, setShowSubtaskInput]     = useState(false);
+  const [selectedBlockerId, setSelectedBlockerId]   = useState<string>("");
+  const [showDeleteConfirm, setShowDeleteConfirm]   = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteTask(taskId!, getAuthRequest());
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      toast({ title: "Task deleted" });
+      onClose();
+    } catch {
+      toast({ variant: "destructive", title: "Failed to delete task" });
+    }
+  };
 
   if (!taskId) return null;
 
@@ -1306,11 +1322,22 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
           <>
             {/* ── Header ── */}
             <div className="p-6 border-b border-border/50 bg-card/30 shrink-0">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="outline" className={`${PRIORITY_CONFIG[task.priority]} uppercase border-none text-[10px]`}>{task.priority}</Badge>
-                <span className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border", STATUS_CONFIG[task.status].bg, STATUS_CONFIG[task.status].color)}>
-                  {STATUS_CONFIG[task.status].label}
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`${PRIORITY_CONFIG[task.priority]} uppercase border-none text-[10px]`}>{task.priority}</Badge>
+                  <span className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border", STATUS_CONFIG[task.status].bg, STATUS_CONFIG[task.status].color)}>
+                    {STATUS_CONFIG[task.status].label}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  title="Delete task"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
               <SheetTitle className="text-xl font-bold leading-tight mb-4">{task.title}</SheetTitle>
 
@@ -1586,6 +1613,26 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
           </div>
         )}
       </SheetContent>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <span className="font-semibold text-foreground">"{task?.title}"</span> and all its subtasks, comments, and dependencies. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
