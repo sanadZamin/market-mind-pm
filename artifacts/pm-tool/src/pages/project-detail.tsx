@@ -160,7 +160,7 @@ function TaskBoard({ tasks, projectId, onTaskClick, users }: { tasks: Task[]; pr
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex h-full gap-6 items-start">
+      <div className="flex h-full gap-6 items-start min-w-max pb-4">
         {columns.map((colId) => {
           const colTasks = tasks.filter(t => t.status === colId).sort((a, b) => a.position - b.position);
           const config   = STATUS_CONFIG[colId];
