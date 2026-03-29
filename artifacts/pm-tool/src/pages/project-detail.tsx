@@ -1276,9 +1276,9 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
     queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
   };
 
-  const handleFieldUpdate = async (field: string, value: string | null) => {
+  const handleFieldUpdate = async (field: string, value: string | number | null) => {
     try {
-      await updateTask(taskId!, { [field]: value || null } as any, getAuthRequest());
+      await updateTask(taskId!, { [field]: value } as any, getAuthRequest());
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
       toast({ title: "Task updated" });
@@ -1314,7 +1314,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                   <select
                     className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
                     value={task.assigneeId ?? ""}
-                    onChange={e => handleFieldUpdate("assigneeId", e.target.value || null)}
+                    onChange={e => handleFieldUpdate("assigneeId", e.target.value ? Number(e.target.value) : null)}
                   >
                     <option value="">Unassigned</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
