@@ -48,7 +48,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-background relative overflow-hidden">
+    <div className="dark min-h-screen w-full flex bg-background relative overflow-hidden">
       {/* Market Mind Brand Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0" style={{ background: "hsl(160 65% 5%)" }} />
