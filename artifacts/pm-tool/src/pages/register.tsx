@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Mail, Lock, User as UserIcon } from "lucide-react";
-import logoImg from "@assets/logo_4_1774721132433.png";
+import logoImg from "../assets/logo.png";
 import { motion } from "framer-motion";
 
 const registerSchema = z.object({

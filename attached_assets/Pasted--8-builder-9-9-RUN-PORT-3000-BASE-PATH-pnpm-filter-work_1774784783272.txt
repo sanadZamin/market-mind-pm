@@ -1,0 +1,29 @@
+#8 [builder 9/9] RUN PORT=3000 BASE_PATH=/ pnpm --filter @workspace/pm-tool run build
+#8 sha256:dc9c27d28cb77cfec9cb0bd43bea55559de804522c8c6af6561e3d13de31b49f
+#8 0.897 
+#8 0.897 > @workspace/pm-tool@0.0.0 build /app/artifacts/pm-tool
+#8 0.897 > vite build --config vite.config.ts
+#8 0.897 
+#8 1.562 vite v7.3.1 building client environment for production...
+#8 1.695 transforming...
+#8 2.542 src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+#8 3.424 src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+#8 3.507 ✓ 103 modules transformed.
+#8 3.509 ✗ Build failed in 1.90s
+#8 3.510 error during build:
+#8 3.510 Could not resolve "../assets/glass-logo-nobg.png" from "src/pages/login.tsx"
+#8 3.510 file: /app/artifacts/pm-tool/src/pages/login.tsx
+#8 3.510     at getRollupError (file:///app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+#8 3.510     at error (file:///app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+#8 3.510     at ModuleLoader.handleInvalidResolvedId (file:///app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:21710:24)
+#8 3.510     at file:///app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:21670:26
+#8 3.572 /app/artifacts/pm-tool:
+#8 3.572  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/pm-tool@0.0.0 build: `vite build --config vite.config.ts`
+#8 3.572 Exit status 1
+#8 ERROR: process "/bin/sh -c PORT=3000 BASE_PATH=/ pnpm --filter @workspace/pm-tool run build" did not complete successfully: exit code: 1
+------
+ > [builder 9/9] RUN PORT=3000 BASE_PATH=/ pnpm --filter @workspace/pm-tool run build:
+------
+process "/bin/sh -c PORT=3000 BASE_PATH=/ pnpm --filter @workspace/pm-tool run build" did not complete successfully: exit code: 1
+Build step 'Execute shell' marked build as failure
+Finished: FAILURE
