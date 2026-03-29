@@ -155,7 +155,7 @@ function TaskBoard({ tasks, projectId, onTaskClick, users }: { tasks: Task[]; pr
     const taskId   = Number(draggableId);
     const newStatus = destination.droppableId as TaskStatus;
     await updateTask(taskId, { status: newStatus }, getAuthRequest());
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
   };
 
   return (
@@ -1118,7 +1118,7 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
       if (payload.assigneeId == null) delete payload.assigneeId;
       await createTask(projectId, payload as any, getAuthRequest());
       toast({ title: "Task created" });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
       onOpenChange(false);
       form.reset();
     } catch {
@@ -1244,7 +1244,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
       setNewSubtaskDueDate("");
       setShowSubtaskInput(false);
       refetchSubtasks();
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
       toast({ title: "Subtask added" });
     } catch {
       toast({ variant: "destructive", title: "Failed to add subtask" });
@@ -1263,7 +1263,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
       await addTaskDependency(taskId!, { dependsOnTaskId: parseInt(selectedBlockerId) }, getAuthRequest());
       setSelectedBlockerId("");
       refetchDeps();
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
       toast({ title: "Blocker added" });
     } catch (e: any) {
       toast({ variant: "destructive", title: e?.message || "Failed to add blocker" });
@@ -1273,7 +1273,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
   const handleRemoveBlocker = async (dependsOnId: number) => {
     await removeTaskDependency(taskId!, dependsOnId, getAuthRequest());
     refetchDeps();
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
   };
 
   const completedSubtasks = subtasks?.filter((s: Task) => s.status === "done").length ?? 0;
