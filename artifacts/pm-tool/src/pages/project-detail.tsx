@@ -1276,6 +1276,17 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
     queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
   };
 
+  const handleFieldUpdate = async (field: string, value: string | null) => {
+    try {
+      await updateTask(taskId!, { [field]: value || null } as any, getAuthRequest());
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+      toast({ title: "Task updated" });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to update task" });
+    }
+  };
+
   const completedSubtasks = subtasks?.filter((s: Task) => s.status === "done").length ?? 0;
   const totalSubtasks     = subtasks?.length ?? 0;
   const isOverdue = task?.dueDate && isPast(new Date(task.dueDate)) && task?.status !== "done";
@@ -1295,38 +1306,72 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
               </div>
               <SheetTitle className="text-xl font-bold leading-tight mb-4">{task.title}</SheetTitle>
 
-              {/* Key metadata grid */}
+              {/* Key metadata grid — all fields editable */}
               <div className="grid grid-cols-2 gap-3 text-sm">
-                {/* Owner */}
+                {/* Owner — editable */}
                 <div className="bg-secondary/30 rounded-xl p-3 border border-border/40">
                   <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5 flex items-center gap-1"><UserIcon className="w-3 h-3"/> Owner</p>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-6 h-6"><AvatarFallback className="text-[10px] bg-primary/20 text-primary">{task.assignee?.name?.charAt(0) || "?"}</AvatarFallback></Avatar>
-                    <span className="font-medium text-sm">{task.assignee?.name || "Unassigned"}</span>
-                  </div>
+                  <select
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
+                    value={task.assigneeId ?? ""}
+                    onChange={e => handleFieldUpdate("assigneeId", e.target.value || null)}
+                  >
+                    <option value="">Unassigned</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
                 </div>
 
-                {/* Deadline */}
+                {/* Deadline — editable */}
                 <div className={clsx("rounded-xl p-3 border", isOverdue ? "bg-red-500/10 border-red-400/30" : "bg-secondary/30 border-border/40")}>
                   <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5 flex items-center gap-1"><CalendarIcon className="w-3 h-3"/> Deadline</p>
-                  <div className={clsx("flex items-center gap-2 font-medium text-sm", isOverdue ? "text-red-400" : "text-foreground")}>
-                    {isOverdue && <AlertTriangle className="w-3.5 h-3.5" />}
-                    {task.dueDate ? format(new Date(task.dueDate), "MMM d, yyyy") : <span className="text-muted-foreground">No deadline</span>}
-                  </div>
+                  <input
+                    type="date"
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
+                    value={task.dueDate ? task.dueDate.slice(0, 10) : ""}
+                    onChange={e => handleFieldUpdate("dueDate", e.target.value || null)}
+                  />
                 </div>
 
-                {/* Reporter */}
+                {/* Priority — editable */}
                 <div className="bg-secondary/30 rounded-xl p-3 border border-border/40">
-                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">Reporter</p>
-                  <span className="font-medium text-sm">{task.reporter?.name || "—"}</span>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">Priority</p>
+                  <select
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
+                    value={task.priority}
+                    onChange={e => handleFieldUpdate("priority", e.target.value)}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
                 </div>
 
-                {/* Start Date */}
+                {/* Start Date — editable */}
                 <div className="bg-secondary/30 rounded-xl p-3 border border-border/40">
                   <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">Start Date</p>
-                  <span className="font-medium text-sm">
-                    {task.startDate ? format(new Date(task.startDate), "MMM d, yyyy") : <span className="text-muted-foreground">—</span>}
-                  </span>
+                  <input
+                    type="date"
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
+                    value={task.startDate ? task.startDate.slice(0, 10) : ""}
+                    onChange={e => handleFieldUpdate("startDate", e.target.value || null)}
+                  />
+                </div>
+
+                {/* Status — editable, full width */}
+                <div className="col-span-2 bg-secondary/30 rounded-xl p-3 border border-border/40">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">Status</p>
+                  <select
+                    className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
+                    value={task.status}
+                    onChange={e => handleFieldUpdate("status", e.target.value)}
+                  >
+                    <option value="backlog">Backlog</option>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="in_review">In Review</option>
+                    <option value="done">Done</option>
+                  </select>
                 </div>
               </div>
             </div>
