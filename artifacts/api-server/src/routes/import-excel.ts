@@ -80,7 +80,7 @@ Return ONLY a valid JSON array of task objects with these exact fields: title, d
           stream: false,
           options: { temperature: 0.1 },
         }),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!ollamaResponse.ok) {
