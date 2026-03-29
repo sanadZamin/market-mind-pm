@@ -1,0 +1,11 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+RUN npm install -g pnpm
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY lib/ ./lib/
+COPY artifacts/pm-tool/ ./artifacts/pm-tool/
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @workspace/pm-tool run build
+FROM nginx:alpine
+COPY --from=builder /app/artifacts/pm-tool/dist /usr/share/nginx/html
+EXPOSE 80
