@@ -160,12 +160,12 @@ function TaskBoard({ tasks, projectId, onTaskClick, users }: { tasks: Task[]; pr
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex h-full gap-6 items-start min-w-max pb-4">
+      <div className="flex gap-6 items-start min-w-max pb-8">
         {columns.map((colId) => {
           const colTasks = tasks.filter(t => t.status === colId).sort((a, b) => a.position - b.position);
           const config   = STATUS_CONFIG[colId];
           return (
-            <div key={colId} className="flex flex-col w-80 shrink-0 max-h-full">
+            <div key={colId} className="flex flex-col w-80 shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className={`w-3 h-3 rounded-full ${config.dot}`} />
@@ -180,7 +180,7 @@ function TaskBoard({ tasks, projectId, onTaskClick, users }: { tasks: Task[]; pr
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={clsx(
-                      "flex-1 overflow-y-auto p-2 -m-2 rounded-2xl transition-colors min-h-[150px]",
+                      "p-2 -m-2 rounded-2xl transition-colors min-h-[150px]",
                       snapshot.isDraggingOver && "bg-secondary/40 border-2 border-dashed border-primary/30"
                     )}
                   >
