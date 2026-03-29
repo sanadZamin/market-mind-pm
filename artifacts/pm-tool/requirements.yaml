@@ -1,0 +1,20 @@
+packages:
+  "framer-motion": "For page transitions and smooth UI animations"
+  "date-fns": "For formatting and calculating task durations in Gantt view"
+  "@hello-pangea/dnd": "For the drag-and-drop Kanban board (React 18/19 compatible)"
+  "@hookform/resolvers": "For Zod form validation"
+  "recharts": "For dashboard statistics visualization"
+  "clsx": "For classname merging"
+  "tailwind-merge": "For classname merging"
+
+images:
+  - path: "artifacts/pm-tool/public/images/auth-bg.png"
+    description: "Abstract dark mode geometric background with deep indigo and purple glowing gradients, sleek and professional"
+    aspect_ratio: "16:9"
+  - path: "artifacts/pm-tool/public/images/logo.png"
+    description: "Minimalist geometric letter M logo in electric indigo on a dark background, SaaS style"
+    aspect_ratio: "1:1"
+
+notes:
+  - "Using Bearer token authentication via localStorage 'pm_token'"
+  - "Custom auth headers injected into generated orval hooks via request options"
