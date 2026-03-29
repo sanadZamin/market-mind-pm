@@ -31,7 +31,7 @@ export default function Projects() {
   const { data: projects, isLoading } = useListProjects({ request: getAuthRequest() });
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const createMutation = useCreateProject();
+  const createMutation = useCreateProject({ request: getAuthRequest() });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -42,7 +42,7 @@ export default function Projects() {
 
   const onSubmit = async (data: CreateProjectForm) => {
     try {
-      await createMutation.mutateAsync({ data, request: getAuthRequest() });
+      await createMutation.mutateAsync({ data });
       toast({ title: "Project created successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsDialogOpen(false);
