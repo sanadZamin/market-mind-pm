@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout";
+import { ExcelImportDialog } from "@/components/excel-import-dialog";
 import { useRoute } from "wouter";
 import {
   useGetProject,
@@ -44,7 +45,7 @@ import { format, differenceInDays, addDays, startOfDay, isPast, isToday } from "
 import {
   Plus, List, Trello, CalendarDays, MoreHorizontal, MessageSquare,
   Clock, AlignLeft, Calendar as CalendarIcon, GitBranch, User as UserIcon,
-  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers
+  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useForm, Controller } from "react-hook-form";
@@ -90,6 +91,7 @@ export default function ProjectDetail() {
 
   const [view, setView]                 = useState("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
   if (!project || !tasks) return (
@@ -113,9 +115,14 @@ export default function ProjectDetail() {
                 <p className="text-sm text-muted-foreground">{project.description}</p>
               </div>
             </div>
-            <Button onClick={() => setIsCreateOpen(true)} className="rounded-xl shadow-lg shadow-primary/20 h-10 px-5 gap-2">
-              <Plus className="w-4 h-4" /> Add Task
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsImportOpen(true)} className="rounded-xl h-10 px-4 gap-2">
+                <FileSpreadsheet className="w-4 h-4" /> Import Excel
+              </Button>
+              <Button onClick={() => setIsCreateOpen(true)} className="rounded-xl shadow-lg shadow-primary/20 h-10 px-5 gap-2">
+                <Plus className="w-4 h-4" /> Add Task
+              </Button>
+            </div>
           </div>
 
           <Tabs value={view} onValueChange={setView} className="w-full">
@@ -137,6 +144,7 @@ export default function ProjectDetail() {
       </div>
 
       <CreateTaskDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} projectId={projectId} users={users || []} />
+      <ExcelImportDialog open={isImportOpen} onOpenChange={setIsImportOpen} projectId={projectId} />
       <TaskDetailSheet  taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} users={users || []} projectId={projectId} allTasks={tasks} />
     </Layout>
   );
