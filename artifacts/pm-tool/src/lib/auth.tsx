@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, AuthResponse } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 
@@ -48,6 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("pm_user");
     setLocation("/login");
   };
+
+  // Keep a ref so the event listener always calls the latest logout
+  const logoutRef = useRef(logout);
+  useEffect(() => { logoutRef.current = logout; });
+
+  // Auto-logout when any API call returns 401 (session expired)
+  useEffect(() => {
+    const handler = () => logoutRef.current();
+    window.addEventListener("auth:expired", handler);
+    return () => window.removeEventListener("auth:expired", handler);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, token, isLoading, setAuth, logout }}>
