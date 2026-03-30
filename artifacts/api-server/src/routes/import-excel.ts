@@ -15,18 +15,76 @@ router.use(requireAuth as any);
 
 /** Normalise any date value to "YYYY-MM-DD" or null */
 function toDateStr(val: unknown): string | null {
-  if (!val) return null;
-  let d: Date;
+  if (val === null || val === undefined) return null;
+  if (val === "") return null;
+
+  // Helpers
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const asYMD = (d: Date) =>
+    `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+
+  // Convert Excel "serial date" to a UTC date.
+  // Excel's day 1 is 1899-12-31, but serials are typically offset by 1 due to leap year bug.
+  const excelSerialToDate = (serial: number): Date | null => {
+    if (!Number.isFinite(serial)) return null;
+    // Common approach for Excel serials: 1899-12-30 as the epoch for "serial 0".
+    const epoch = Date.UTC(1899, 11, 30);
+    const ms = Math.floor(serial) * 86400000;
+    const d = new Date(epoch + ms);
+    if (Number.isNaN(d.getTime())) return null;
+    return d;
+  };
+
+  // 1) Date objects
   if (val instanceof Date) {
-    d = val;
-  } else {
-    const s = String(val).trim();
-    if (!s) return null;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already correct format
-    d = new Date(s);
+    if (Number.isNaN(val.getTime())) return null;
+    return asYMD(val);
   }
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+
+  // 2) Numbers (Excel serial dates)
+  if (typeof val === "number") {
+    const d = excelSerialToDate(val);
+    if (!d) return null;
+    return asYMD(d);
+  }
+
+  // 3) Strings
+  const s = String(val).trim();
+  if (!s) return null;
+
+  // Already correct format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Excel serial stored as text
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const maybeSerial = Number(s);
+    const d = excelSerialToDate(maybeSerial);
+    if (d) return asYMD(d);
+  }
+
+  // dd/mm/yyyy (or dd-mm-yyyy / dd.mm.yyyy)
+  // Also supports 2-digit years.
+  const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/);
+  if (dmy) {
+    const a = Number(dmy[1]); // day OR month
+    const b = Number(dmy[2]); // month OR day
+    const yearRaw = dmy[3];
+    const year = yearRaw.length === 2 ? 2000 + Number(yearRaw) : Number(yearRaw);
+
+    // Prefer dd/mm (since your Excel is dd/mm), but use a heuristic for safety.
+    const day =
+      a > 12 && b <= 12 ? a : b > 12 && a <= 12 ? b : a;
+    const month =
+      a > 12 && b <= 12 ? b : b > 12 && a <= 12 ? a : b;
+
+    const d = new Date(Date.UTC(year, month - 1, day));
+    if (!Number.isNaN(d.getTime())) return asYMD(d);
+  }
+
+  // 4) Last resort: let JS parse (works for ISO strings with/without time)
+  const parsed = new Date(s);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return asYMD(parsed);
 }
 
 type MappedTask = {

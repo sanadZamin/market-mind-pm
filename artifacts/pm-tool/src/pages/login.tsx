@@ -107,19 +107,34 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-white/80 font-medium">Password</Label>
-                  <a href="#" className="text-xs text-primary hover:text-primary/80 transition-colors">Forgot password?</a>
-                </div>
-                <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    className="pl-10 h-12 bg-white/8 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-primary focus-visible:border-primary/60 transition-all rounded-xl"
-                    {...form.register("password")}
-                  />
+                {/* Grid keeps the same visual layout, but the DOM order is Label -> Password input -> Forgot link.
+                    That ensures keyboard `Tab` moves from email to password first. */}
+                <div className="grid grid-cols-[1fr_auto] items-center gap-x-2">
+                  <Label
+                    htmlFor="password"
+                    className="text-white/80 font-medium"
+                  >
+                    Password
+                  </Label>
+
+                  <div className="relative col-span-2">
+                    <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-10 h-12 bg-white/8 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-primary focus-visible:border-primary/60 transition-all rounded-xl"
+                      {...form.register("password")}
+                    />
+                  </div>
+
+                  <a
+                    href="#"
+                    onClick={(e) => e.preventDefault()}
+                    className="text-xs text-primary hover:text-primary/80 transition-colors col-start-2 row-start-1"
+                  >
+                    Forgot password?
+                  </a>
                 </div>
                 {form.formState.errors.password && (
                   <p className="text-xs text-red-400 mt-1">{form.formState.errors.password.message}</p>
