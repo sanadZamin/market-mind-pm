@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAuthHeaders } from "@/lib/api-helpers";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, X, Loader2, User as UserIcon } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, X, Loader2, User as UserIcon, ChevronDown, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 
 type PreviewTask = {
@@ -16,6 +16,7 @@ type PreviewTask = {
   assignee?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
+  parentTask?: string | null;
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -56,6 +57,10 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
   const { toast }                 = useToast();
   const queryClient               = useQueryClient();
 
+  // Expanded parent titles in the preview dialog.
+  // We use parent titles as grouping keys (consistent with the current import response).
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(() => new Set());
+
   const reset = () => {
     setStage("upload");
     setFile(null);
@@ -64,6 +69,7 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
     setRawRows(null);
     setShowRaw(false);
     setDragOver(false);
+    setExpandedParents(new Set());
   };
 
   const handleClose = () => {
@@ -98,6 +104,7 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
       setTasks(data.tasks);
       setLlmError(data.llmError);
       setRawRows(data.rawRows ?? null);
+      setExpandedParents(new Set());
       setStage("preview");
     } catch (err: unknown) {
       toast({ variant: "destructive", title: "Import failed", description: err instanceof Error ? err.message : String(err) });
@@ -198,7 +205,15 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary/40 border border-border/50">
                 <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="text-sm font-medium text-foreground flex-1 truncate">{file?.name}</span>
-                <Badge variant="outline" className="text-xs shrink-0">{tasks.length} task{tasks.length !== 1 ? "s" : ""} found</Badge>
+                <Badge variant="outline" className="text-xs shrink-0">
+                  {(() => {
+                    const parentCount = tasks.filter((t) => !t.parentTask).length;
+                    const subCount = tasks.length - parentCount;
+                    return `${parentCount} parent task${parentCount !== 1 ? "s" : ""}${
+                      subCount > 0 ? ` (+${subCount} subtasks)` : ""
+                    }`;
+                  })()}
+                </Badge>
               </div>
 
               {/* LLM error banner */}
@@ -277,42 +292,110 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
-                      {tasks.map((task, i) => (
-                        <tr key={i} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-4 py-3 font-medium text-foreground max-w-[160px]">
-                            <span className="truncate block" title={task.title}>{task.title}</span>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground max-w-[160px]">
-                            <span className="truncate block text-xs" title={task.description ?? ""}>{task.description || "—"}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={clsx("px-2 py-0.5 rounded-full text-xs border", STATUS_BADGE[task.status] ?? STATUS_BADGE.todo)}>
-                              {STATUS_LABEL[task.status] ?? task.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={clsx("text-[10px] uppercase border-none", PRIORITY_BADGE[task.priority] ?? PRIORITY_BADGE.medium)}>
-                              {task.priority}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {task.assignee ? (
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <UserIcon className="w-3 h-3 shrink-0" />
-                                <span className="truncate max-w-[100px]" title={task.assignee}>{task.assignee}</span>
+                      {tasks.filter(t => !t.parentTask).flatMap((parent) => {
+                        const parentTitle = parent.title;
+                        const children = tasks.filter(t => t.parentTask && String(t.parentTask) === parentTitle);
+                        const isExpanded = expandedParents.has(parentTitle);
+
+                        const parentRow = (
+                          <tr key={`p::${parentTitle}`} className="hover:bg-secondary/20 transition-colors">
+                            <td className="px-4 py-3 font-medium text-foreground max-w-[160px]">
+                              <div className="flex items-center gap-2">
+                                {children.length > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExpandedParents((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(parentTitle)) next.delete(parentTitle);
+                                        else next.add(parentTitle);
+                                        return next;
+                                      });
+                                    }}
+                                    className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                                    aria-label={isExpanded ? "Collapse subtasks" : "Expand subtasks"}
+                                  >
+                                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                  </button>
+                                ) : null}
+                                <span className="truncate block" title={parent.title}>{parent.title}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground max-w-[160px]">
+                              <span className="truncate block text-xs" title={parent.description ?? ""}>{parent.description || "—"}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={clsx("px-2 py-0.5 rounded-full text-xs border", STATUS_BADGE[parent.status] ?? STATUS_BADGE.todo)}>
+                                {STATUS_LABEL[parent.status] ?? parent.status}
                               </span>
-                            ) : (
-                              <span className="text-muted-foreground/50 text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {task.startDate ? task.startDate : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {task.dueDate ? task.dueDate : "—"}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className={clsx("text-[10px] uppercase border-none", PRIORITY_BADGE[parent.priority] ?? PRIORITY_BADGE.medium)}>
+                                {parent.priority}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              {parent.assignee ? (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <UserIcon className="w-3 h-3 shrink-0" />
+                                  <span className="truncate max-w-[100px]" title={parent.assignee}>{parent.assignee}</span>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground/50 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {parent.startDate ? parent.startDate : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {parent.dueDate ? parent.dueDate : "—"}
+                            </td>
+                          </tr>
+                        );
+
+                        const childRows = isExpanded
+                          ? children.map((child, idx) => (
+                              <tr key={`c::${parentTitle}::${child.title}::${idx}`} className="hover:bg-secondary/10 transition-colors">
+                                <td className="px-4 py-3 font-medium text-foreground max-w-[160px]">
+                                  <span className="truncate block text-muted-foreground/90" title={child.title}>
+                                    ↳ {child.title}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-muted-foreground max-w-[160px]">
+                                  <span className="truncate block text-xs" title={child.description ?? ""}>{child.description || "—"}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={clsx("px-2 py-0.5 rounded-full text-xs border", STATUS_BADGE[child.status] ?? STATUS_BADGE.todo)}>
+                                    {STATUS_LABEL[child.status] ?? child.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className={clsx("text-[10px] uppercase border-none", PRIORITY_BADGE[child.priority] ?? PRIORITY_BADGE.medium)}>
+                                    {child.priority}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  {child.assignee ? (
+                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                      <UserIcon className="w-3 h-3 shrink-0" />
+                                      <span className="truncate max-w-[100px]" title={child.assignee}>{child.assignee}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground/50 text-xs">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground">
+                                  {child.startDate ? child.startDate : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-muted-foreground">
+                                  {child.dueDate ? child.dueDate : "—"}
+                                </td>
+                              </tr>
+                            ))
+                          : [];
+
+                        return [parentRow, ...childRows];
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -348,7 +431,17 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
                 {stage === "confirming" ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating…</>
                 ) : (
-                  <><CheckCircle className="w-4 h-4 mr-2" /> Import {tasks.length} Task{tasks.length !== 1 ? "s" : ""}</>
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Import{" "}
+                    {(() => {
+                      const parentCount = tasks.filter((t) => !t.parentTask).length;
+                      const subCount = tasks.length - parentCount;
+                      return `${parentCount} parent task${parentCount !== 1 ? "s" : ""}${
+                        subCount > 0 ? ` (+${subCount} subtasks)` : ""
+                      }`;
+                    })()}
+                  </>
                 )}
               </Button>
             </>
