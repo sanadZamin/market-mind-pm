@@ -291,6 +291,8 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
   const [sort, setSort]         = useState<{ key: SortKey; dir: SortDir }>({ key: "title", dir: "asc" });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [subtaskCache, setSubtaskCache] = useState<Map<number, Task[]>>(new Map());
   const [loadingExpand, setLoadingExpand] = useState<Set<number>>(new Set());
@@ -341,8 +343,36 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
       toast({ title: `${selected.size} task${selected.size !== 1 ? "s" : ""} updated` });
       setSelected(new Set());
+      setExpanded(new Set());
+      setSubtaskCache(new Map());
     } catch { toast({ variant: "destructive", title: "Bulk update failed" }); }
     finally { setBulkBusy(false); }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleteBusy(true);
+    try {
+      const ids = [...selected];
+      if (ids.length === 0) return;
+
+      const results = await Promise.allSettled(ids.map((id) => deleteTask(id, getAuthRequest())));
+      const deletedCount = results.filter((r) => r.status === "fulfilled").length;
+
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      toast({
+        title: `Deleted ${deletedCount} task${deletedCount !== 1 ? "s" : ""}`,
+        variant: deletedCount === 0 ? "destructive" : undefined,
+      });
+
+      setSelected(new Set());
+      setExpanded(new Set());
+      setSubtaskCache(new Map());
+    } catch {
+      toast({ variant: "destructive", title: "Bulk delete failed" });
+    } finally {
+      setBulkDeleteBusy(false);
+      setShowBulkDeleteConfirm(false);
+    }
   };
 
   // Column header with sort indicator
@@ -389,6 +419,16 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
             ))}
           </div>
           <button
+            type="button"
+            disabled={bulkDeleteBusy}
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            className="text-xs text-destructive hover:text-destructive/90 transition-colors shrink-0 flex items-center gap-1"
+            title="Delete selected tasks"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
+          </button>
+          <button
             className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
             onClick={() => setSelected(new Set())}
           >
@@ -396,6 +436,28 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
           </button>
         </div>
       )}
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete selected tasks?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-semibold text-foreground">{selected.size}</span> task(s) and all their subtasks, comments, and dependencies. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteBusy || selected.size === 0}
+            >
+              {bulkDeleteBusy ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-xl shadow-black/5">
         <table className="w-full text-sm text-left">
@@ -1332,7 +1394,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="h-8 w-8 mt-4 mr-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                   onClick={() => setShowDeleteConfirm(true)}
                   title="Delete task"
                 >
