@@ -80,10 +80,10 @@ function buildEmailTemplate(input: {
   const escapedActorName = escapeHtml(input.actorName);
 
   const detailsHtml = input.details.length
-    ? `<ul style="margin: 8px 0 0; padding-left: 20px; color: #d5f8ef;">
+    ? `<ul style="margin: 8px 0 0; padding-left: 20px; color: #1e3a32;">
         ${input.details.map((line) => `<li style="margin: 4px 0;">${escapeHtml(line)}</li>`).join("")}
       </ul>`
-    : `<p style="margin: 8px 0 0; color: #9ad8c7;">No extra details were provided.</p>`;
+    : `<p style="margin: 8px 0 0; color: #5d7c73;">No extra details were provided.</p>`;
 
   const logoHtml = input.logoSrc
     ? `<img src="${escapeHtml(input.logoSrc)}" alt="Market Mind" width="36" height="36" style="display:block; border-radius: 8px;" />`
@@ -92,16 +92,23 @@ function buildEmailTemplate(input: {
   const actionUrl = input.actionUrl?.trim();
   const actionLabel = input.actionLabel?.trim() || "Open update";
   const ctaHtml = actionUrl
-    ? `<a href="${escapeHtml(actionUrl)}" style="display: inline-block; margin-top: 14px; padding: 10px 14px; background: linear-gradient(90deg, #13eac1 0%, #23a7e5 100%); color: #06251b; text-decoration: none; font-weight: 700; border-radius: 8px; font-size: 14px;">
-         ${escapeHtml(actionLabel)}
-       </a>`
+    ? `
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 14px;">
+        <tr>
+          <td bgcolor="#13eac1" style="border-radius: 8px;">
+            <a href="${escapeHtml(actionUrl)}" style="display: inline-block; padding: 10px 14px; color: #06251b; text-decoration: none; font-weight: 700; border-radius: 8px; font-size: 14px;">
+              ${escapeHtml(actionLabel)}
+            </a>
+          </td>
+        </tr>
+      </table>`
     : "";
 
   const html = `
-  <div style="background: #061910; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #e3f7f0;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 620px; margin: 0 auto; background: #0a2219; border: 1px solid #1f4f3d; border-radius: 12px; overflow: hidden;">
+  <div style="background-color: #f3f8f6; padding: 24px; font-family: Arial, Helvetica, sans-serif; color: #10211c;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 620px; margin: 0 auto; background-color: #ffffff; border: 1px solid #d8ebe4; border-radius: 12px; overflow: hidden;">
       <tr>
-        <td style="padding: 16px 22px; background: linear-gradient(90deg, #13eac1 0%, #23a7e5 100%); color: #06251b;">
+        <td bgcolor="#13eac1" style="padding: 16px 22px; background-color: #13eac1; color: #06251b;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             <tr>
               <td width="44" valign="middle">
@@ -116,13 +123,13 @@ function buildEmailTemplate(input: {
       </tr>
       <tr>
         <td style="padding: 22px;">
-          <h2 style="margin: 0 0 10px; color: #e9fff8; font-size: 20px; line-height: 1.3;">${escapedSubject}</h2>
-          <p style="margin: 0; color: #c8f3e7; line-height: 1.6;">${escapedIntro}</p>
-          <p style="margin: 14px 0 0; color: #9ad8c7; font-size: 14px;">
-            <strong style="color: #d6fff4;">Updated by:</strong> ${escapedActorName}
+          <h2 style="margin: 0 0 10px; color: #10211c; font-size: 20px; line-height: 1.3;">${escapedSubject}</h2>
+          <p style="margin: 0; color: #304b43; line-height: 1.6;">${escapedIntro}</p>
+          <p style="margin: 14px 0 0; color: #36584f; font-size: 14px;">
+            <strong style="color: #10211c;">Updated by:</strong> ${escapedActorName}
           </p>
-          <div style="margin-top: 16px; padding: 12px 14px; border: 1px solid #1f4f3d; border-radius: 10px; background: #0f2e22;">
-            <p style="margin: 0; font-size: 13px; font-weight: 600; color: #9ad8c7; text-transform: uppercase; letter-spacing: 0.04em;">
+          <div style="margin-top: 16px; padding: 12px 14px; border: 1px solid #d8ebe4; border-radius: 10px; background-color: #f7fbf9;">
+            <p style="margin: 0; font-size: 13px; font-weight: 600; color: #36584f; text-transform: uppercase; letter-spacing: 0.04em;">
               Details
             </p>
             ${detailsHtml}
@@ -131,7 +138,7 @@ function buildEmailTemplate(input: {
         </td>
       </tr>
       <tr>
-        <td style="padding: 14px 22px; color: #7cb9a8; font-size: 12px; border-top: 1px solid #1f4f3d;">
+        <td style="padding: 14px 22px; color: #5d7c73; font-size: 12px; border-top: 1px solid #d8ebe4;">
           This is an automated notification from Market Mind.
         </td>
       </tr>
