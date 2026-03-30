@@ -4,8 +4,10 @@ import * as XLSX from "xlsx";
 import { db, tasksTable, usersTable } from "@workspace/db";
 import { eq, or, ilike, inArray, isNull, and } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
+import { sendTeamUpdateEmail } from "../lib/notifications.js";
 
 const router: IRouter = Router({ mergeParams: true });
+const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://149.102.140.178:7869";
@@ -566,6 +568,14 @@ router.post("/projects/:projectId/tasks/bulk", async (req: AuthenticatedRequest,
     (createdExplicitTopLevel as any[]).length + (createdDerivedParents as any[]).length + (createdChildren as any[]).length;
 
   res.status(201).json({ created: createdTotal });
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Bulk task import completed`,
+    intro: `Tasks were imported from Excel.`,
+    details: [`Project ID: ${projectId}`, `Created tasks: ${createdTotal}`],
+    actionUrl: `${PM_TOOL_BASE_URL}/projects/${projectId}`,
+    actionLabel: "Open project",
+  });
 });
 
 export default router;

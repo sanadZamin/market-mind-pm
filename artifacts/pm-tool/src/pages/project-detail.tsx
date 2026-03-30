@@ -4,6 +4,7 @@ import { ExcelImportDialog } from "@/components/excel-import-dialog";
 import { useRoute } from "wouter";
 import {
   useGetProject,
+  useUpdateProject,
   useListTasks,
   useCreateTask,
   useUpdateTask,
@@ -48,7 +49,7 @@ import { format, differenceInDays, addDays, startOfDay, isPast, isToday } from "
 import {
   Plus, List, Trello, CalendarDays, MoreHorizontal, MessageSquare,
   Clock, AlignLeft, Calendar as CalendarIcon, GitBranch, User as UserIcon,
-  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2
+  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useForm, Controller } from "react-hook-form";
@@ -84,6 +85,18 @@ const taskSchema = z.object({
 });
 type TaskForm = z.infer<typeof taskSchema>;
 
+const projectSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  description: z.string().optional(),
+  color: z.string().min(1, "Color is required"),
+  status: z.enum(["active", "archived", "completed"]),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+type ProjectForm = z.infer<typeof projectSchema>;
+
+const PROJECT_COLORS = ["#13eac1", "#23a7e5", "#003d30", "#0db99a", "#10b981", "#f59e0b", "#ef4444"];
+
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
@@ -91,11 +104,70 @@ export default function ProjectDetail() {
   const { data: project } = useGetProject(projectId, { request: getAuthRequest() });
   const { data: tasks }   = useListTasks(projectId, undefined, { request: getAuthRequest() });
   const { data: users }   = useListUsers({ request: getAuthRequest() });
+  const updateProjectMutation = useUpdateProject({ request: getAuthRequest() });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [view, setView]                 = useState("board");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const taskIdParam = new URLSearchParams(window.location.search).get("taskId");
+    if (!taskIdParam) return;
+    const taskId = Number(taskIdParam);
+    if (!Number.isNaN(taskId)) setSelectedTaskId(taskId);
+  }, []);
+
+  const projectForm = useForm<ProjectForm>({
+    resolver: zodResolver(projectSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      color: PROJECT_COLORS[0],
+      status: "active",
+      startDate: "",
+      endDate: "",
+    },
+  });
+
+  useEffect(() => {
+    if (!project) return;
+    projectForm.reset({
+      name: project.name ?? "",
+      description: project.description ?? "",
+      color: project.color ?? PROJECT_COLORS[0],
+      status: project.status,
+      startDate: project.startDate ? project.startDate.slice(0, 10) : "",
+      endDate: project.endDate ? project.endDate.slice(0, 10) : "",
+    });
+  }, [project, projectForm]);
+
+  const onUpdateProject = async (data: ProjectForm) => {
+    try {
+      await updateProjectMutation.mutateAsync({
+        projectId,
+        data: {
+          name: data.name,
+          description: data.description || "",
+          color: data.color,
+          status: data.status,
+          startDate: data.startDate || undefined,
+          endDate: data.endDate || undefined,
+        },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      toast({ title: "Project updated" });
+      setIsEditProjectOpen(false);
+    } catch {
+      toast({ variant: "destructive", title: "Failed to update project" });
+    }
+  };
 
   if (!project || !tasks) return (
     <Layout><div className="flex h-full items-center justify-center">
@@ -119,6 +191,9 @@ export default function ProjectDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsEditProjectOpen(true)} className="rounded-xl h-10 px-4 gap-2">
+                <Pencil className="w-4 h-4" /> Edit Project
+              </Button>
               <Button variant="outline" onClick={() => setIsImportOpen(true)} className="rounded-xl h-10 px-4 gap-2">
                 <FileSpreadsheet className="w-4 h-4" /> Import Excel
               </Button>
@@ -149,6 +224,95 @@ export default function ProjectDetail() {
       <CreateTaskDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} projectId={projectId} users={users || []} />
       <ExcelImportDialog open={isImportOpen} onOpenChange={setIsImportOpen} projectId={projectId} />
       <TaskDetailSheet  taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} users={users || []} projectId={projectId} allTasks={tasks} />
+
+      <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+        <DialogContent className="sm:max-w-[520px] bg-card border-border rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Edit Project Details</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={projectForm.handleSubmit(onUpdateProject)} className="space-y-4 mt-3">
+            <div className="space-y-2">
+              <Label>Project Name</Label>
+              <Input {...projectForm.register("name")} className="bg-background" placeholder="Project name..." />
+              {projectForm.formState.errors.name && (
+                <p className="text-xs text-destructive">{projectForm.formState.errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                {...projectForm.register("description")}
+                className="bg-background resize-none"
+                placeholder="Project description..."
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Controller
+                  control={projectForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {PROJECT_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={clsx(
+                        "w-7 h-7 rounded-full transition-all",
+                        projectForm.watch("color") === color
+                          ? "ring-2 ring-offset-2 ring-offset-card ring-primary scale-105"
+                          : "hover:scale-105"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => projectForm.setValue("color", color)}
+                      aria-label={`Pick ${color} color`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Input type="date" {...projectForm.register("startDate")} className="bg-background block w-full" />
+              </div>
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <Input type="date" {...projectForm.register("endDate")} className="bg-background block w-full" />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="ghost" onClick={() => setIsEditProjectOpen(false)} className="rounded-xl">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateProjectMutation.isPending} className="rounded-xl">
+                {updateProjectMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

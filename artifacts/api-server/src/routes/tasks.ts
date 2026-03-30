@@ -3,8 +3,12 @@ import { db, tasksTable, usersTable, taskDependenciesTable } from "@workspace/db
 import { eq, and, inArray, or, isNull } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { CreateTaskBody, UpdateTaskBody, ListTasksQueryParams } from "@workspace/api-zod";
+import { sendTeamUpdateEmail } from "../lib/notifications.js";
 
 const router: IRouter = Router({ mergeParams: true });
+const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
+const getTaskLink = (projectId: number, taskId: number) =>
+  `${PM_TOOL_BASE_URL}/projects/${projectId}?taskId=${taskId}`;
 
 router.use(requireAuth as any);
 
@@ -96,6 +100,14 @@ router.post("/projects/:projectId/tasks", async (req: AuthenticatedRequest, res)
   }).returning();
   const [result] = await enrichTasks([task]);
   res.status(201).json(result);
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Task created: ${task.title}`,
+    intro: `A task was created.`,
+    details: [`Task: ${task.title}`, `Project ID: ${projectId}`],
+    actionUrl: getTaskLink(projectId, task.id),
+    actionLabel: "Open task",
+  });
 });
 
 // ── GET single task ──
@@ -119,13 +131,32 @@ router.put("/tasks/:taskId", async (req: AuthenticatedRequest, res) => {
   if (!task) { res.status(404).json({ error: "Not found" }); return; }
   const [result] = await enrichTasks([task]);
   res.json(result);
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Task updated: ${task.title}`,
+    intro: `A task was updated.`,
+    details: [`Task: ${task.title}`, `Status: ${task.status}`],
+    actionUrl: getTaskLink(task.projectId, task.id),
+    actionLabel: "Open task",
+  });
 });
 
 // ── DELETE task ──
 router.delete("/tasks/:taskId", async (req: AuthenticatedRequest, res) => {
   const taskId = parseInt(req.params.taskId);
+  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId));
   await db.delete(tasksTable).where(eq(tasksTable.id, taskId));
   res.json({ success: true, message: "Task deleted" });
+  if (task) {
+    await sendTeamUpdateEmail({
+      actorUserId: req.userId!,
+      subject: `Task deleted: ${task.title}`,
+      intro: `A task was deleted.`,
+      details: [`Task: ${task.title}`],
+      actionUrl: `${PM_TOOL_BASE_URL}/projects/${task.projectId}`,
+      actionLabel: "View project",
+    });
+  }
 });
 
 // ── LIST subtasks ──
@@ -158,6 +189,14 @@ router.post("/tasks/:taskId/subtasks", async (req: AuthenticatedRequest, res) =>
   }).returning();
   const [result] = await enrichTasks([subtask]);
   res.status(201).json(result);
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Subtask created: ${subtask.title}`,
+    intro: `A subtask was created.`,
+    details: [`Subtask: ${subtask.title}`, `Parent task ID: ${taskId}`],
+    actionUrl: getTaskLink(subtask.projectId, subtask.id),
+    actionLabel: "Open subtask",
+  });
 });
 
 // ── GET dependencies for a task ──
@@ -199,15 +238,32 @@ router.post("/tasks/:taskId/dependencies", async (req: AuthenticatedRequest, res
     dependsOnTask: blocker ? { id: blocker.id, title: blocker.title, status: blocker.status } : null,
     createdAt: dep.createdAt.toISOString(),
   });
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Dependency added to task #${taskId}`,
+    intro: `A task dependency was added.`,
+    details: [`Task ID: ${taskId}`, `Blocked by task ID: ${dependsOnTaskId}`],
+    actionUrl: blocker ? getTaskLink(blocker.projectId, taskId) : `${PM_TOOL_BASE_URL}/projects`,
+    actionLabel: "Open task",
+  });
 });
 
 // ── REMOVE a dependency ──
 router.delete("/tasks/:taskId/dependencies/:dependsOnId", async (req: AuthenticatedRequest, res) => {
   const taskId = parseInt(req.params.taskId);
   const dependsOnId = parseInt(req.params.dependsOnId);
+  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId));
   await db.delete(taskDependenciesTable)
     .where(and(eq(taskDependenciesTable.taskId, taskId), eq(taskDependenciesTable.dependsOnTaskId, dependsOnId)));
   res.json({ success: true, message: "Dependency removed" });
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Dependency removed from task #${taskId}`,
+    intro: `A task dependency was removed.`,
+    details: [`Task ID: ${taskId}`, `Removed blocker task ID: ${dependsOnId}`],
+    actionUrl: task ? getTaskLink(task.projectId, taskId) : `${PM_TOOL_BASE_URL}/projects`,
+    actionLabel: "Open task",
+  });
 });
 
 export default router;

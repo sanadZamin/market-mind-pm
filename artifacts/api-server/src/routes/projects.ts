@@ -3,8 +3,10 @@ import { db, projectsTable, tasksTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { CreateProjectBody, UpdateProjectBody } from "@workspace/api-zod";
+import { sendTeamUpdateEmail } from "../lib/notifications.js";
 
 const router: IRouter = Router();
+const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 
 router.use(requireAuth as any);
 
@@ -56,6 +58,14 @@ router.post("/", async (req: AuthenticatedRequest, res) => {
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   });
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Project created: ${project.name}`,
+    intro: `A new project was created.`,
+    details: [`Project: ${project.name}`, `Status: ${project.status}`],
+    actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
+    actionLabel: "Open project",
+  });
 });
 
 router.get("/:projectId", async (req: AuthenticatedRequest, res) => {
@@ -67,6 +77,14 @@ router.get("/:projectId", async (req: AuthenticatedRequest, res) => {
   }
   const [result] = await withTaskCounts([project]);
   res.json(result);
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Project updated: ${project.name}`,
+    intro: `A project was updated.`,
+    details: [`Project: ${project.name}`, `Status: ${project.status}`],
+    actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
+    actionLabel: "Open project",
+  });
 });
 
 router.put("/:projectId", async (req: AuthenticatedRequest, res) => {
@@ -91,8 +109,19 @@ router.put("/:projectId", async (req: AuthenticatedRequest, res) => {
 
 router.delete("/:projectId", async (req: AuthenticatedRequest, res) => {
   const projectId = parseInt(req.params.projectId);
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
   await db.delete(projectsTable).where(eq(projectsTable.id, projectId));
   res.json({ success: true, message: "Project deleted" });
+  if (project) {
+    await sendTeamUpdateEmail({
+      actorUserId: req.userId!,
+      subject: `Project deleted: ${project.name}`,
+      intro: `A project was deleted.`,
+      details: [`Project: ${project.name}`],
+      actionUrl: `${PM_TOOL_BASE_URL}/projects`,
+      actionLabel: "View projects",
+    });
+  }
 });
 
 export default router;
