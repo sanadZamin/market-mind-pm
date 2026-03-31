@@ -8,9 +8,12 @@ import "./index.css";
 const _origFetch = window.fetch.bind(window);
 window.fetch = async (...args) => {
   const response = await _origFetch(...args);
+  console.log("[runtime] BASE_URL =", import.meta.env.BASE_URL);
+console.log("[runtime] pathname =", window.location.pathname);
   if (response.status === 401 && localStorage.getItem("pm_token")) {
     window.dispatchEvent(new Event("auth:expired"));
   }
+
   return response;
 };
 
