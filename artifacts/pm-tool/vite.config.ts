@@ -14,6 +14,7 @@ if (!rawPort) {
 
 const port = Number(rawPort);
 
+
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
@@ -33,6 +34,10 @@ const basePath = normalizeBasePath(
   process.env.BASE_PATH ??
     (process.env.NODE_ENV === "production" ? "/pm/" : "/"),
 );
+
+console.log("[vite] NODE_ENV=", process.env.NODE_ENV);
+console.log("[vite] BASE_PATH(raw)=", process.env.BASE_PATH);
+console.log("[vite] basePath(normalized)=", basePath);
 
 export default defineConfig({
   base: basePath,
