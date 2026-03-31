@@ -52,8 +52,18 @@ export default function Login() {
       {/* Market Mind Brand Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0" style={{ background: "hsl(160 65% 5%)" }} />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-20" style={{ background: "radial-gradient(circle, #13eac1 0%, transparent 70%)", filter: "blur(80px)" }} />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-15" style={{ background: "radial-gradient(circle, #23a7e5 0%, transparent 70%)", filter: "blur(80px)" }} />
+        <motion.div
+          className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, #13eac1 0%, transparent 70%)", filter: "blur(80px)" }}
+          animate={{ scale: [1, 1.07, 1], opacity: [0.16, 0.24, 0.16] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-15"
+          style={{ background: "radial-gradient(circle, #23a7e5 0%, transparent 70%)", filter: "blur(80px)" }}
+          animate={{ scale: [1.05, 1, 1.05], opacity: [0.12, 0.2, 0.12] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+        />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-5" style={{ background: "radial-gradient(circle, #13eac1 0%, transparent 60%)" }} />
         {/* Subtle grid */}
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(#13eac1 1px, transparent 1px), linear-gradient(90deg, #13eac1 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
@@ -83,7 +93,12 @@ export default function Login() {
             <span className="font-bold text-3xl tracking-tight text-white">Market Mind</span>
           </div>
 
-          <div className="glass-panel p-8 rounded-3xl">
+          <motion.div
+            className="glass-panel p-8 rounded-3xl"
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.45, ease: "easeOut", delay: 0.08 }}
+          >
             <div className="mb-8 text-center">
               <h1 className="text-2xl font-bold text-white mb-2 font-display">Sign in to your account</h1>
               <p className="text-white/55 text-sm">Enter your details to access your workspace</p>
@@ -157,7 +172,7 @@ export default function Login() {
                 Create one now
               </Link>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </div>
