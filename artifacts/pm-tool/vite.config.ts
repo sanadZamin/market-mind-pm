@@ -18,13 +18,21 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
+function normalizeBasePath(input: string): string {
+  if (!input.trim()) return "/";
+  let value = input.trim();
+  if (!value.startsWith("/")) value = `/${value}`;
+  if (!value.endsWith("/")) value = `${value}/`;
+  return value;
 }
+
+// Safer defaults:
+// - dev: "/"
+// - production: "/pm/"
+const basePath = normalizeBasePath(
+  process.env.BASE_PATH ??
+    (process.env.NODE_ENV === "production" ? "/pm/" : "/"),
+);
 
 export default defineConfig({
   base: basePath,
