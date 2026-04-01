@@ -49,7 +49,7 @@ import { format, differenceInDays, addDays, startOfDay, isPast, isToday } from "
 import {
   Plus, List, Trello, CalendarDays, MoreHorizontal, MessageSquare,
   Clock, AlignLeft, Calendar as CalendarIcon, GitBranch, User as UserIcon,
-  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil
+  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil, FileDown
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useForm, Controller } from "react-hook-form";
@@ -112,7 +112,9 @@ export default function ProjectDetail() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  const [isExportingReport, setIsExportingReport] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const ganttExportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -169,6 +171,59 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleExportReport = async () => {
+    if (!project || !tasks) return;
+    setIsExportingReport(true);
+    try {
+      if (view !== "gantt") {
+        setView("gantt");
+        await new Promise((resolve) => setTimeout(resolve, 220));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      const ganttNode = ganttExportRef.current;
+      if (!ganttNode) throw new Error("Gantt chart is not ready");
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      const canvas = await html2canvas(ganttNode, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#0a2219",
+      });
+      const chartImage = canvas.toDataURL("image/png");
+
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter((t) => t.status === "done").length;
+      const inProgressTasks = tasks.filter((t) => t.status === "in_progress").length;
+      const overdueTasks = tasks.filter((t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "done").length;
+
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      pdf.setFontSize(18);
+      pdf.text(`Project Report: ${project.name}`, 40, 42);
+      pdf.setFontSize(11);
+      pdf.text(`Generated: ${format(new Date(), "MMM d, yyyy h:mm a")}`, 40, 62);
+      pdf.text(`Status: ${project.status}`, 300, 62);
+      pdf.text(`Tasks: ${completedTasks}/${totalTasks} done`, 420, 62);
+      pdf.text(`In Progress: ${inProgressTasks}  |  Overdue: ${overdueTasks}`, 620, 62);
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const targetWidth = pageWidth - 80;
+      const targetHeight = (canvas.height * targetWidth) / canvas.width;
+      pdf.addImage(chartImage, "PNG", 40, 84, targetWidth, targetHeight);
+      pdf.save(`${project.name.replace(/\s+/g, "-").toLowerCase()}-gantt-report.pdf`);
+
+      toast({ title: "Report exported" });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to export report" });
+    } finally {
+      setIsExportingReport(false);
+    }
+  };
+
   if (!project || !tasks) return (
     <Layout><div className="flex h-full items-center justify-center">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"/>
@@ -191,6 +246,14 @@ export default function ProjectDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExportReport}
+                disabled={isExportingReport}
+                className="rounded-xl h-10 px-4 gap-2"
+              >
+                <FileDown className="w-4 h-4" /> {isExportingReport ? "Exporting..." : "Export Report"}
+              </Button>
               <Button variant="outline" onClick={() => setIsEditProjectOpen(true)} className="rounded-xl h-10 px-4 gap-2">
                 <Pencil className="w-4 h-4" /> Edit Project
               </Button>
@@ -216,7 +279,11 @@ export default function ProjectDetail() {
           <div className="absolute inset-0 overflow-auto p-8">
             {view === "board" && <TaskBoard tasks={tasks} projectId={projectId} onTaskClick={setSelectedTaskId} users={users || []} />}
             {view === "list"  && <TaskList  tasks={tasks} onTaskClick={setSelectedTaskId} projectId={projectId} />}
-            {view === "gantt" && <TaskGantt tasks={tasks} onTaskClick={setSelectedTaskId} projectId={projectId} />}
+            {view === "gantt" && (
+              <div ref={ganttExportRef}>
+                <TaskGantt tasks={tasks} onTaskClick={setSelectedTaskId} projectId={projectId} />
+              </div>
+            )}
           </div>
         </div>
       </div>
