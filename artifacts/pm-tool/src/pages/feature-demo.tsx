@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getSignInPath } from "@/lib/app-entry";
 import logoImg from "../assets/logo.png";
 
 const SLIDE_MS = 5200;
@@ -322,7 +323,7 @@ export default function FeatureDemo() {
 
       <div className="relative z-10 max-w-5xl mx-auto px-4 py-10 md:py-14">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-          <Link href="/login">
+          <Link href={getSignInPath()}>
             <Button variant="ghost" size="sm" className="text-white/70 hover:text-white -ml-2 gap-1.5">
               <ArrowLeft className="w-4 h-4" />
               Back to sign in

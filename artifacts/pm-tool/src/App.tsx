@@ -7,17 +7,21 @@ import { AuthProvider, ProtectedRoute } from "@/lib/auth";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
+import Splash from "@/pages/splash";
 import FeatureDemo from "@/pages/feature-demo";
+import { getSignInPath } from "@/lib/app-entry";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 
 const queryClient = new QueryClient();
 
+const signInPath = getSignInPath();
+
 function RegisterToLoginRedirect() {
   const [, setLocation] = useLocation();
   useEffect(() => {
-    setLocation("/login");
+    setLocation(signInPath);
   }, [setLocation]);
   return null;
 }
@@ -25,13 +29,11 @@ function RegisterToLoginRedirect() {
 function Router() {
   return (
     <Switch>
-      <Route path="/login" component={Login} />
+      <Route path="/" component={Splash} />
+      <Route path={signInPath} component={Login} />
       <Route path="/demo" component={FeatureDemo} />
       <Route path="/register" component={RegisterToLoginRedirect} />
       
-      <Route path="/">
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      </Route>
       <Route path="/dashboard">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
       </Route>

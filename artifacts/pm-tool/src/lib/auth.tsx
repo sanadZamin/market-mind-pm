@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, AuthResponse } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
+import { getSignInPath } from "@/lib/app-entry";
 
 interface AuthContextType {
   user: User | null;
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     localStorage.removeItem("pm_token");
     localStorage.removeItem("pm_user");
-    setLocation("/login");
+    setLocation(getSignInPath());
   };
 
   // Keep a ref so the event listener always calls the latest logout
@@ -81,7 +82,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      setLocation("/login");
+      setLocation(getSignInPath());
     }
   }, [user, isLoading, setLocation]);
 

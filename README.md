@@ -79,6 +79,7 @@ Excel import LLM mapping:
 - `PORT` (dev server port)
 - `BASE_PATH` (deployment subpath, e.g. `/pm/`)
 - `API_PORT` (optional, local API proxy target; default 8080 in config)
+- `VITE_PM_SIGNIN_PATH` (optional, build-time path segment for sign-in; default `mm-workbench`, so sign-in is at `/${segment}` under your app base—there is no public `/login` route)
 
 ## Qwen LLM Usage
 
