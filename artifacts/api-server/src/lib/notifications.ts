@@ -20,6 +20,13 @@ function isEmailDebugEnabled() {
   return process.env.EMAIL_DEBUG === "true";
 }
 
+/** Set `EMAIL_ENABLED=false` to skip all team notification emails without changing SMTP settings. */
+function isEmailSendingEnabled() {
+  const v = process.env.EMAIL_ENABLED?.trim().toLowerCase();
+  if (v === "false" || v === "0" || v === "no" || v === "off") return false;
+  return true;
+}
+
 function isEmailConfigured() {
   const configured = Boolean(
     process.env.SMTP_HOST &&
@@ -171,6 +178,13 @@ export async function sendTeamUpdateEmail(input: SendUpdateEmailInput) {
       },
       "Email debug: sendTeamUpdateEmail called",
     );
+  }
+
+  if (!isEmailSendingEnabled()) {
+    if (debug) {
+      logger.info({ subject: input.subject }, "Email debug: skipped (EMAIL_ENABLED is off)");
+    }
+    return;
   }
 
   if (!isEmailConfigured()) return;

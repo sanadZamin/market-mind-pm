@@ -9,3 +9,9 @@ export const getAuthHeaders = () => {
 export const getAuthRequest = () => ({
   headers: getAuthHeaders()
 });
+
+/** Same base as `setBaseUrl` + `/api` — use for raw `fetch` calls. */
+export function getApiRoot(): string {
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+  return base ? `${base}/api` : "/api";
+}

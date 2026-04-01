@@ -4,11 +4,31 @@ import { eq, and, count } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { CreateProjectBody, UpdateProjectBody } from "@workspace/api-zod";
 import { sendTeamUpdateEmail } from "../lib/notifications.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://149.102.140.178:7869";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3.5:0.8b";
+/** Qwen3-style models: thinking mode adds latency; `/api/chat` + `think: false` follows Ollama docs. */
+const OLLAMA_THINK =
+  process.env.OLLAMA_THINK === "true" || process.env.OLLAMA_THINK === "1";
+/** Remote Ollama + model load often exceeds 60s; too-low values cause `This operation was aborted` at ~OLLAMA_TIMEOUT_MS. */
+const OLLAMA_TIMEOUT_MS = (() => {
+  const raw = process.env.OLLAMA_TIMEOUT_MS?.trim();
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  const requested =
+    Number.isFinite(parsed) && parsed > 0 ? parsed : 300_000;
+  const withFloor = Math.max(requested, 180_000);
+  const capped = Math.min(withFloor, 900_000);
+  if (requested < 180_000) {
+    logger.warn(
+      { requestedMs: requested, effectiveMs: capped },
+      "OLLAMA_TIMEOUT_MS was below 180s; rephrase uses a 180s minimum for remote Ollama cold start",
+    );
+  }
+  return capped;
+})();
 
 router.use(requireAuth as any);
 
@@ -88,41 +108,85 @@ router.post("/:projectId/rephrase-description", async (req: AuthenticatedRequest
     return;
   }
 
-  const prompt = `Rephrase the following project description to be concise, professional, and clear.
-Keep the same meaning and do not invent new scope.
-Return only the rewritten description text, with no markdown, no bullet points, no quotes.
+  const prompt = `Rewrite the following project description in a concise, professional tone (stakeholder-facing, no fluff).
+
+Requirements:
+- Be noticeably shorter than the original: tighten wording, drop repetition and filler, keep one or two crisp paragraphs at most (or a few short sentences if the source is brief).
+- Stay formal and clear; do not pad with extra clauses or long introductions.
+- Do not add deliverables, scope, dates, or stakeholders that are not in the original.
+
+Output only the rewritten description as plain prose (no title line, no markdown, no bullet lists, no quotation marks wrapping the whole text).
 
 Project name: ${project.name}
-Description:
+Original description:
 ${description}`;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
   try {
-    const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+    const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: OLLAMA_MODEL,
-        prompt,
+        messages: [{ role: "user", content: prompt }],
         stream: false,
-        options: { temperature: 0.2 },
+        keep_alive: "30m",
+        think: OLLAMA_THINK,
+        options: { temperature: 0.25, num_predict: 380 },
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: controller.signal,
     });
 
+    const rawBody = await ollamaResponse.text();
     if (!ollamaResponse.ok) {
-      res.status(502).json({ error: "LLM request failed" });
+      let detail = rawBody.trim().slice(0, 800);
+      try {
+        const errJson = JSON.parse(rawBody) as { error?: string };
+        if (typeof errJson.error === "string" && errJson.error) detail = errJson.error;
+      } catch {
+        /* keep raw slice */
+      }
+      console.error("[rephrase-description] Ollama HTTP error", ollamaResponse.status, detail);
+      const hint =
+        ollamaResponse.status === 500 && detail.length < 2
+          ? " If this always happens near 60s, raise timeouts on any reverse proxy in front of Ollama (e.g. nginx proxy_read_timeout) and check Ollama stderr logs."
+          : "";
+      res.status(502).json({
+        error: "LLM request failed",
+        message: `Ollama ${ollamaResponse.status}: ${detail || "(no body)"}${hint}`,
+      });
       return;
     }
 
-    const payload = (await ollamaResponse.json()) as { response?: string };
-    const rewritten = String(payload.response ?? "").trim();
+    let payload: { message?: { content?: string } };
+    try {
+      payload = JSON.parse(rawBody) as { message?: { content?: string } };
+    } catch {
+      console.error("[rephrase-description] Invalid JSON from Ollama", rawBody.slice(0, 500));
+      res.status(502).json({ error: "LLM returned invalid JSON" });
+      return;
+    }
+
+    const rewritten = String(payload.message?.content ?? "").trim();
     if (!rewritten) {
       res.status(502).json({ error: "LLM returned empty response" });
       return;
     }
     res.json({ description: rewritten });
-  } catch {
-    res.status(502).json({ error: "Failed to rephrase description" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const aborted =
+      (err as { name?: string })?.name === "AbortError" || /abort/i.test(message);
+    console.error("[rephrase-description]", message);
+    res.status(502).json({
+      error: "Failed to rephrase description",
+      message: aborted
+        ? `LLM request timed out after ${OLLAMA_TIMEOUT_MS / 1000}s. Increase OLLAMA_TIMEOUT_MS (e.g. 600000), warm the model on the Ollama host, or fix any proxy_read_timeout in front of Ollama.`
+        : message,
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 

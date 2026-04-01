@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -177,13 +177,6 @@ export default function Login() {
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </form>
-
-            <div className="mt-8 text-center text-sm text-white/50">
-              Don't have an account?{" "}
-              <Link href="/register" className="text-primary font-medium hover:text-primary/80 transition-colors">
-                Create one now
-              </Link>
-            </div>
           </motion.div>
         </motion.div>
       </div>

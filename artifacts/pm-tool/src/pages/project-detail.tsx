@@ -31,7 +31,7 @@ import {
   TaskStatus,
   TaskDependency,
 } from "@workspace/api-client-react";
-import { getAuthRequest } from "@/lib/api-helpers";
+import { getApiRoot, getAuthRequest } from "@/lib/api-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -399,21 +399,34 @@ export default function ProjectDetail() {
     }
     setIsRephrasingDescription(true);
     try {
-      const response = await fetch(`/api/projects/${projectId}/rephrase-description`, {
+      const response = await fetch(
+        `${getApiRoot()}/projects/${projectId}/rephrase-description`,
+        {
         method: "POST",
         headers: {
           ...getAuthRequest().headers,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ description: currentDescription }),
-      });
-      if (!response.ok) throw new Error("Rephrase request failed");
-      const data = (await response.json()) as { description?: string };
+      }
+      );
+      const data = (await response.json().catch(() => ({}))) as {
+        description?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      }
       if (!data.description) throw new Error("Empty rephrased description");
       projectForm.setValue("description", data.description, { shouldDirty: true });
       toast({ title: "Description rephrased" });
-    } catch {
-      toast({ variant: "destructive", title: "Failed to rephrase description" });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Failed to rephrase description",
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setIsRephrasingDescription(false);
     }

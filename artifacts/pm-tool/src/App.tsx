@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,18 +7,25 @@ import { AuthProvider, ProtectedRoute } from "@/lib/auth";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
-import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 
 const queryClient = new QueryClient();
 
+function RegisterToLoginRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation("/login");
+  }, [setLocation]);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
+      <Route path="/register" component={RegisterToLoginRedirect} />
       
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
