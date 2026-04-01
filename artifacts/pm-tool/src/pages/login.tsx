@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -177,6 +177,15 @@ export default function Login() {
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </form>
+
+            <div className="mt-6 text-center">
+              <Link
+                href="/demo"
+                className="text-sm text-white/45 hover:text-primary transition-colors inline-flex items-center gap-1"
+              >
+                View animated feature tour
+              </Link>
+            </div>
           </motion.div>
         </motion.div>
       </div>

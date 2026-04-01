@@ -7,6 +7,7 @@ import { AuthProvider, ProtectedRoute } from "@/lib/auth";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
+import FeatureDemo from "@/pages/feature-demo";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
@@ -25,6 +26,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/demo" component={FeatureDemo} />
       <Route path="/register" component={RegisterToLoginRedirect} />
       
       <Route path="/">
