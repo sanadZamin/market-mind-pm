@@ -284,7 +284,27 @@ export default function ProjectDetail() {
       pdf.setTextColor(86, 112, 103);
       pdf.text("Tasks with start/due dates", chartX, 60);
 
-      const datedTasks = tasks
+      const subtaskResults = await Promise.allSettled(
+        tasks.map(async (parent) => ({
+          parentId: parent.id,
+          subtasks: await listSubtasks(parent.id, getAuthRequest()),
+        })),
+      );
+      const subtasksByParent = new Map<number, Task[]>();
+      subtaskResults.forEach((result) => {
+        if (result.status === "fulfilled") {
+          subtasksByParent.set(result.value.parentId, result.value.subtasks);
+        }
+      });
+
+      const exportRows: (Task & { __isSubtask?: boolean })[] = [];
+      tasks.forEach((parent) => {
+        exportRows.push(parent);
+        const subs = subtasksByParent.get(parent.id) ?? [];
+        subs.forEach((sub) => exportRows.push({ ...sub, __isSubtask: true }));
+      });
+
+      const datedTasks = exportRows
         .filter((t) => t.dueDate)
         .map((t) => ({
           ...t,
@@ -339,8 +359,10 @@ export default function ProjectDetail() {
 
           pdf.setFontSize(9);
           pdf.setTextColor(24, 42, 35);
-          const label = task.title.length > 34 ? `${task.title.slice(0, 31)}...` : task.title;
-          pdf.text(label, chartX + 6, y + rowHeight * 0.68);
+          const taskTitle = task.__isSubtask ? `- ${task.title}` : task.title;
+          const label = taskTitle.length > 34 ? `${taskTitle.slice(0, 31)}...` : taskTitle;
+          const labelX = task.__isSubtask ? chartX + 18 : chartX + 6;
+          pdf.text(label, labelX, y + rowHeight * 0.68);
 
           const startOffset = Math.max(0, differenceInDays(task.exportStart, chartStart));
           const duration = Math.max(1, differenceInDays(task.exportEnd, task.exportStart) + 1);
