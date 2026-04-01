@@ -7,6 +7,8 @@ import { sendTeamUpdateEmail } from "../lib/notifications.js";
 
 const router: IRouter = Router();
 const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://149.102.140.178:7869";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3.5:0.8b";
 
 router.use(requireAuth as any);
 
@@ -66,6 +68,62 @@ router.post("/", async (req: AuthenticatedRequest, res) => {
     actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
     actionLabel: "Open project",
   });
+});
+
+router.post("/:projectId/rephrase-description", async (req: AuthenticatedRequest, res) => {
+  const projectId = parseInt(req.params.projectId);
+  if (Number.isNaN(projectId)) {
+    res.status(400).json({ error: "Invalid projectId" });
+    return;
+  }
+  const description = typeof req.body?.description === "string" ? req.body.description.trim() : "";
+  if (!description) {
+    res.status(400).json({ error: "description is required" });
+    return;
+  }
+
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
+  if (!project) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const prompt = `Rephrase the following project description to be concise, professional, and clear.
+Keep the same meaning and do not invent new scope.
+Return only the rewritten description text, with no markdown, no bullet points, no quotes.
+
+Project name: ${project.name}
+Description:
+${description}`;
+
+  try {
+    const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+        options: { temperature: 0.2 },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!ollamaResponse.ok) {
+      res.status(502).json({ error: "LLM request failed" });
+      return;
+    }
+
+    const payload = (await ollamaResponse.json()) as { response?: string };
+    const rewritten = String(payload.response ?? "").trim();
+    if (!rewritten) {
+      res.status(502).json({ error: "LLM returned empty response" });
+      return;
+    }
+    res.json({ description: rewritten });
+  } catch {
+    res.status(502).json({ error: "Failed to rephrase description" });
+  }
 });
 
 router.get("/:projectId", async (req: AuthenticatedRequest, res) => {

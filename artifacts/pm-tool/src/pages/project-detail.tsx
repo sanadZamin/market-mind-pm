@@ -49,7 +49,7 @@ import { format, differenceInDays, addDays, startOfDay, isPast, isToday } from "
 import {
   Plus, List, Trello, CalendarDays, MoreHorizontal, MessageSquare,
   Clock, AlignLeft, Calendar as CalendarIcon, GitBranch, User as UserIcon,
-  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil, FileDown
+  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil, FileDown, Sparkles
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useForm, Controller } from "react-hook-form";
@@ -113,6 +113,7 @@ export default function ProjectDetail() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState(false);
+  const [isRephrasingDescription, setIsRephrasingDescription] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const ganttExportRef = useRef<HTMLDivElement | null>(null);
 
@@ -390,6 +391,34 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleRephraseDescription = async () => {
+    const currentDescription = projectForm.getValues("description")?.trim() || "";
+    if (!currentDescription) {
+      toast({ variant: "destructive", title: "Add a description first" });
+      return;
+    }
+    setIsRephrasingDescription(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/rephrase-description`, {
+        method: "POST",
+        headers: {
+          ...getAuthRequest().headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ description: currentDescription }),
+      });
+      if (!response.ok) throw new Error("Rephrase request failed");
+      const data = (await response.json()) as { description?: string };
+      if (!data.description) throw new Error("Empty rephrased description");
+      projectForm.setValue("description", data.description, { shouldDirty: true });
+      toast({ title: "Description rephrased" });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to rephrase description" });
+    } finally {
+      setIsRephrasingDescription(false);
+    }
+  };
+
   if (!project || !tasks) return (
     <Layout><div className="flex h-full items-center justify-center">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"/>
@@ -474,7 +503,20 @@ export default function ProjectDetail() {
             </div>
 
             <div className="space-y-2">
-              <Label>Description</Label>
+              <div className="flex items-center justify-between">
+                <Label>Description</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRephraseDescription}
+                  disabled={isRephrasingDescription}
+                  className="h-8 rounded-lg gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {isRephrasingDescription ? "Rephrasing..." : "AI Rephrase"}
+                </Button>
+              </div>
               <Textarea
                 {...projectForm.register("description")}
                 className="bg-background resize-none"
