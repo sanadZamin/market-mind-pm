@@ -175,64 +175,185 @@ export default function ProjectDetail() {
     if (!project || !tasks) return;
     setIsExportingReport(true);
     try {
-      if (view !== "gantt") {
-        setView("gantt");
-      }
+      const loadLogoDataUrl = async (): Promise<string | null> => {
+        try {
+          const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
+          const res = await fetch(logoUrl);
+          if (!res.ok) return null;
+          const blob = await res.blob();
+          return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error("Failed to read logo"));
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          return null;
+        }
+      };
 
-      // Wait for gantt view to mount and finish first paint.
-      let ganttNode: HTMLDivElement | null = null;
-      for (let i = 0; i < 12; i += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 120));
-        ganttNode = ganttExportRef.current;
-        if (ganttNode) break;
-      }
-      if (!ganttNode) throw new Error("Gantt chart is not ready");
-
-      const [{ default: html2canvas }, jsPdfModule] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
+      const [jsPdfModule] = await Promise.all([import("jspdf")]);
       const JsPdfCtor = (jsPdfModule as any).jsPDF ?? (jsPdfModule as any).default;
       if (!JsPdfCtor) throw new Error("PDF library failed to load");
-
-      const canvas = await html2canvas(ganttNode, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#0a2219",
-        onclone: (doc) => {
-          const style = doc.createElement("style");
-          style.textContent = `
-            * {
-              color: #e8fff7 !important;
-              border-color: rgba(120, 185, 170, 0.35) !important;
-            }
-            [class*="bg-"], [style*="background"] {
-              background-image: none !important;
-            }
-          `;
-          doc.head.appendChild(style);
-        },
-      });
-      const chartImage = canvas.toDataURL("image/png");
 
       const totalTasks = tasks.length;
       const completedTasks = tasks.filter((t) => t.status === "done").length;
       const inProgressTasks = tasks.filter((t) => t.status === "in_progress").length;
       const overdueTasks = tasks.filter((t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "done").length;
+      const dueTodayTasks = tasks.filter((t) => t.dueDate && isToday(new Date(t.dueDate)) && t.status !== "done").length;
+      const plannedTasks = tasks.filter((t) => t.startDate || t.dueDate).length;
+      const onTrackTasks = Math.max(0, totalTasks - overdueTasks - dueTodayTasks);
+      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       const pdf = new JsPdfCtor({ orientation: "landscape", unit: "pt", format: "a4" });
-      pdf.setFontSize(18);
-      pdf.text(`Project Report: ${project.name}`, 40, 42);
-      pdf.setFontSize(11);
-      pdf.text(`Generated: ${format(new Date(), "MMM d, yyyy h:mm a")}`, 40, 62);
-      pdf.text(`Status: ${project.status}`, 300, 62);
-      pdf.text(`Tasks: ${completedTasks}/${totalTasks} done`, 420, 62);
-      pdf.text(`In Progress: ${inProgressTasks}  |  Overdue: ${overdueTasks}`, 620, 62);
-
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const targetWidth = pageWidth - 80;
-      const targetHeight = (canvas.height * targetWidth) / canvas.width;
-      pdf.addImage(chartImage, "PNG", 40, 84, targetWidth, targetHeight);
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Cover / Executive summary page
+      pdf.setFillColor(246, 250, 248);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+      const logoDataUrl = await loadLogoDataUrl();
+      if (logoDataUrl) {
+        pdf.addImage(logoDataUrl, "PNG", 46, 40, 44, 44);
+      }
+
+      pdf.setTextColor(16, 33, 28);
+      pdf.setFontSize(26);
+      pdf.text("Market Mind Project Report", 102, 66);
+      pdf.setFontSize(12);
+      pdf.setTextColor(74, 99, 91);
+      pdf.text(`Generated: ${format(new Date(), "MMM d, yyyy h:mm a")}`, 102, 86);
+
+      pdf.setFontSize(22);
+      pdf.setTextColor(16, 33, 28);
+      pdf.text(project.name, 46, 148);
+      pdf.setFontSize(12);
+      pdf.setTextColor(74, 99, 91);
+      const projectDescription = project.description?.trim() || "No project description provided.";
+      const descriptionLines = pdf.splitTextToSize(projectDescription, pageWidth - 92);
+      pdf.text(descriptionLines, 46, 172);
+
+      const summaryTop = 228;
+      const cardW = (pageWidth - 46 * 2 - 16 * 2) / 3;
+      const cardH = 96;
+      const summaryCards: Array<{ label: string; value: string; tone: [number, number, number] }> = [
+        { label: "Total Tasks", value: String(totalTasks), tone: [19, 234, 193] },
+        { label: "Completed", value: `${completedTasks} (${completionRate}%)`, tone: [16, 185, 129] },
+        { label: "In Progress", value: String(inProgressTasks), tone: [35, 167, 229] },
+        { label: "Late", value: String(overdueTasks), tone: [239, 68, 68] },
+        { label: "Due Today", value: String(dueTodayTasks), tone: [245, 158, 11] },
+        { label: "On Track", value: String(onTrackTasks), tone: [99, 102, 241] },
+      ];
+
+      summaryCards.forEach((card, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        const x = 46 + col * (cardW + 16);
+        const y = summaryTop + row * (cardH + 14);
+        pdf.setDrawColor(210, 227, 221);
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(x, y, cardW, cardH, 8, 8, "FD");
+        pdf.setFillColor(card.tone[0], card.tone[1], card.tone[2]);
+        pdf.circle(x + 18, y + 18, 5, "F");
+        pdf.setFontSize(10);
+        pdf.setTextColor(86, 112, 103);
+        pdf.text(card.label.toUpperCase(), x + 30, y + 21);
+        pdf.setFontSize(20);
+        pdf.setTextColor(16, 33, 28);
+        pdf.text(card.value, x + 16, y + 63);
+      });
+
+      pdf.setFontSize(11);
+      pdf.setTextColor(86, 112, 103);
+      pdf.text(`Status: ${project.status}   |   Planned tasks (dated): ${plannedTasks}`, 46, pageHeight - 32);
+
+      const chartX = 40;
+      const chartY = 84;
+      const chartWidth = pageWidth - 80;
+      const chartHeight = pageHeight - 124;
+
+      // Gantt page
+      pdf.addPage("a4", "landscape");
+      pdf.setFillColor(248, 251, 250);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+      pdf.setFontSize(18);
+      pdf.setTextColor(16, 33, 28);
+      pdf.text(`Gantt Timeline - ${project.name}`, chartX, 42);
+      pdf.setFontSize(11);
+      pdf.setTextColor(86, 112, 103);
+      pdf.text("Tasks with start/due dates", chartX, 60);
+
+      const datedTasks = tasks
+        .filter((t) => t.dueDate)
+        .map((t) => ({
+          ...t,
+          exportStart: t.startDate ? startOfDay(new Date(t.startDate)) : startOfDay(new Date(t.dueDate!)),
+          exportEnd: startOfDay(new Date(t.dueDate!)),
+        }));
+
+      if (datedTasks.length === 0) {
+        pdf.setFontSize(12);
+        pdf.text("No dated tasks found. Add due dates to include tasks in the Gantt chart.", chartX, chartY + 20);
+      } else {
+        const minStart = new Date(Math.min(...datedTasks.map((t) => t.exportStart.getTime())));
+        const maxEnd = new Date(Math.max(...datedTasks.map((t) => t.exportEnd.getTime())));
+        const chartStart = addDays(minStart, -2);
+        const chartEnd = addDays(maxEnd, 4);
+        const totalDays = Math.max(1, differenceInDays(chartEnd, chartStart) + 1);
+
+        const labelWidth = 190;
+        const headerHeight = 22;
+        const rows = datedTasks.slice(0, 18);
+        const rowHeight = Math.max(14, Math.floor((chartHeight - headerHeight - 10) / Math.max(rows.length, 1)));
+        const timelineWidth = chartWidth - labelWidth;
+        const dayWidth = timelineWidth / totalDays;
+
+        pdf.setDrawColor(212, 226, 220);
+        pdf.setFillColor(247, 251, 249);
+        pdf.rect(chartX, chartY, chartWidth, chartHeight, "FD");
+
+        pdf.setFontSize(9);
+        for (let d = 0; d <= totalDays; d += 1) {
+          const x = chartX + labelWidth + d * dayWidth;
+          pdf.setDrawColor(226, 236, 232);
+          pdf.line(x, chartY + headerHeight, x, chartY + chartHeight);
+          if (d < totalDays && (d % 5 === 0 || d === 0)) {
+            const date = addDays(chartStart, d);
+            pdf.setTextColor(85, 109, 99);
+            pdf.text(format(date, "MMM d"), x + 2, chartY + 14);
+          }
+        }
+
+        const statusColor: Record<string, [number, number, number]> = {
+          todo: [123, 148, 139],
+          in_progress: [54, 141, 232],
+          in_review: [245, 158, 11],
+          done: [16, 185, 129],
+        };
+
+        rows.forEach((task, idx) => {
+          const y = chartY + headerHeight + idx * rowHeight;
+          pdf.setDrawColor(231, 238, 235);
+          pdf.line(chartX, y + rowHeight, chartX + chartWidth, y + rowHeight);
+
+          pdf.setFontSize(9);
+          pdf.setTextColor(24, 42, 35);
+          const label = task.title.length > 34 ? `${task.title.slice(0, 31)}...` : task.title;
+          pdf.text(label, chartX + 6, y + rowHeight * 0.68);
+
+          const startOffset = Math.max(0, differenceInDays(task.exportStart, chartStart));
+          const duration = Math.max(1, differenceInDays(task.exportEnd, task.exportStart) + 1);
+          const barX = chartX + labelWidth + startOffset * dayWidth;
+          const barW = Math.max(2, duration * dayWidth - 1);
+          const barY = y + Math.max(2, rowHeight * 0.22);
+          const barH = Math.max(6, rowHeight * 0.56);
+          const [r, g, b] = statusColor[task.status] ?? [54, 141, 232];
+          pdf.setFillColor(r, g, b);
+          pdf.roundedRect(barX, barY, barW, barH, 2, 2, "F");
+        });
+      }
+
       pdf.save(`${project.name.replace(/\s+/g, "-").toLowerCase()}-gantt-report.pdf`);
 
       toast({ title: "Report exported" });
