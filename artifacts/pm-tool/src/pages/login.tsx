@@ -53,31 +53,43 @@ export default function Login() {
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0" style={{ background: "hsl(160 65% 5%)" }} />
         <motion.div
-          className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-20"
+          className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30"
           style={{ background: "radial-gradient(circle, #13eac1 0%, transparent 70%)", filter: "blur(80px)" }}
-          animate={{ scale: [1, 1.07, 1], opacity: [0.16, 0.24, 0.16] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ x: [0, 30, 0], y: [0, 16, 0], scale: [1, 1.12, 1], opacity: [0.18, 0.34, 0.18] }}
+          transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-15"
+          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-28"
           style={{ background: "radial-gradient(circle, #23a7e5 0%, transparent 70%)", filter: "blur(80px)" }}
-          animate={{ scale: [1.05, 1, 1.05], opacity: [0.12, 0.2, 0.12] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+          animate={{ x: [0, -26, 0], y: [0, -20, 0], scale: [1.08, 1, 1.08], opacity: [0.16, 0.3, 0.16] }}
+          transition={{ duration: 8.4, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
         />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-5" style={{ background: "radial-gradient(circle, #13eac1 0%, transparent 60%)" }} />
         {/* Subtle grid */}
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(#13eac1 1px, transparent 1px), linear-gradient(90deg, #13eac1 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         {/* Glass 3D logo — bottom left corner decoration */}
-        <img
+        <motion.img
           src={glassLogoImg}
           alt=""
           aria-hidden="true"
           className="absolute bottom-0 left-0 w-[520px] select-none pointer-events-none"
           style={{
-            opacity: 0.7,
+            opacity: 0.72,
             transform: "translate(-8%, 12%)",
             mixBlendMode: "screen",
           }}
+          animate={{ y: [0, -10, 0], opacity: [0.62, 0.82, 0.62] }}
+          transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-1/4 right-[16%] w-3 h-3 rounded-full bg-primary/50"
+          animate={{ y: [0, -20, 0], opacity: [0.2, 0.9, 0.2], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-[60%] left-[14%] w-2.5 h-2.5 rounded-full bg-accent/60"
+          animate={{ y: [0, -16, 0], x: [0, 8, 0], opacity: [0.2, 0.75, 0.2], scale: [0.9, 1.25, 0.9] }}
+          transition={{ duration: 5.1, repeat: Infinity, ease: "easeInOut", delay: 0.7 }}
         />
       </div>
 
