@@ -77,14 +77,6 @@ router.get("/:projectId", async (req: AuthenticatedRequest, res) => {
   }
   const [result] = await withTaskCounts([project]);
   res.json(result);
-  await sendTeamUpdateEmail({
-    actorUserId: req.userId!,
-    subject: `Project updated: ${project.name}`,
-    intro: `A project was updated.`,
-    details: [`Project: ${project.name}`, `Status: ${project.status}`],
-    actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
-    actionLabel: "Open project",
-  });
 });
 
 router.put("/:projectId", async (req: AuthenticatedRequest, res) => {
@@ -105,6 +97,14 @@ router.put("/:projectId", async (req: AuthenticatedRequest, res) => {
   }
   const [result] = await withTaskCounts([project]);
   res.json(result);
+  await sendTeamUpdateEmail({
+    actorUserId: req.userId!,
+    subject: `Project updated: ${project.name}`,
+    intro: `A project was updated.`,
+    details: [`Project: ${project.name}`, `Status: ${project.status}`],
+    actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
+    actionLabel: "Open project",
+  });
 });
 
 router.delete("/:projectId", async (req: AuthenticatedRequest, res) => {

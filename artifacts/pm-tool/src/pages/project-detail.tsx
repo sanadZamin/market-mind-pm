@@ -177,22 +177,41 @@ export default function ProjectDetail() {
     try {
       if (view !== "gantt") {
         setView("gantt");
-        await new Promise((resolve) => setTimeout(resolve, 220));
       }
-      await new Promise((resolve) => setTimeout(resolve, 120));
 
-      const ganttNode = ganttExportRef.current;
+      // Wait for gantt view to mount and finish first paint.
+      let ganttNode: HTMLDivElement | null = null;
+      for (let i = 0; i < 12; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        ganttNode = ganttExportRef.current;
+        if (ganttNode) break;
+      }
       if (!ganttNode) throw new Error("Gantt chart is not ready");
 
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      const [{ default: html2canvas }, jsPdfModule] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
       ]);
+      const JsPdfCtor = (jsPdfModule as any).jsPDF ?? (jsPdfModule as any).default;
+      if (!JsPdfCtor) throw new Error("PDF library failed to load");
 
       const canvas = await html2canvas(ganttNode, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#0a2219",
+        onclone: (doc) => {
+          const style = doc.createElement("style");
+          style.textContent = `
+            * {
+              color: #e8fff7 !important;
+              border-color: rgba(120, 185, 170, 0.35) !important;
+            }
+            [class*="bg-"], [style*="background"] {
+              background-image: none !important;
+            }
+          `;
+          doc.head.appendChild(style);
+        },
       });
       const chartImage = canvas.toDataURL("image/png");
 
@@ -201,7 +220,7 @@ export default function ProjectDetail() {
       const inProgressTasks = tasks.filter((t) => t.status === "in_progress").length;
       const overdueTasks = tasks.filter((t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "done").length;
 
-      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pdf = new JsPdfCtor({ orientation: "landscape", unit: "pt", format: "a4" });
       pdf.setFontSize(18);
       pdf.text(`Project Report: ${project.name}`, 40, 42);
       pdf.setFontSize(11);
@@ -217,8 +236,12 @@ export default function ProjectDetail() {
       pdf.save(`${project.name.replace(/\s+/g, "-").toLowerCase()}-gantt-report.pdf`);
 
       toast({ title: "Report exported" });
-    } catch {
-      toast({ variant: "destructive", title: "Failed to export report" });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to export report",
+        description: error?.message || "Please try again",
+      });
     } finally {
       setIsExportingReport(false);
     }
