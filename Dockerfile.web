@@ -14,7 +14,7 @@ COPY artifacts/pm-tool/ ./artifacts/pm-tool/
 RUN pnpm install --frozen-lockfile
 
 # Sign-in URL path segment baked at build time (no leading slash), e.g. mm-workbench -> /pm/mm-workbench
-ARG VITE_PM_SIGNIN_PATH=mm-workbench
+ARG VITE_PM_SIGNIN_PATH=login
 
 # Fix 2: pass PORT and BASE_PATH — PORT can be any number (only used by dev
 # server, not the build output), BASE_PATH=/ for a standalone deployment
