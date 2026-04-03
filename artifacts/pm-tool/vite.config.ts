@@ -78,11 +78,11 @@ export default defineConfig(({ mode }) => {
         : {
             proxy: {
               "/api": {
-                target: `http://localhost:${env.API_PORT ?? 8080}`,
+                target: `http://localhost:${env.API_PORT ?? 8081}`,
                 changeOrigin: true,
               },
               "/pm/api": {
-                target: `http://localhost:${env.API_PORT ?? 8080}`,
+                target: `http://localhost:${env.API_PORT ?? 8081}`,
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/pm\/api/, "/api"),
               },

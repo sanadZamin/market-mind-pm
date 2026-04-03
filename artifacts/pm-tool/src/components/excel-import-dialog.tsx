@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { getAuthHeaders } from "@/lib/api-helpers";
+import { getApiRoot, getAuthHeaders } from "@/lib/api-helpers";
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, X, Loader2, User as UserIcon, ChevronDown, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 
@@ -89,7 +89,7 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
     formData.append("file", f);
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/import-excel`, {
+      const res = await fetch(`${getApiRoot()}/projects/${projectId}/import-excel`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: formData,
@@ -128,7 +128,7 @@ export function ExcelImportDialog({ open, onOpenChange, projectId }: ExcelImport
   const handleConfirm = async () => {
     setStage("confirming");
     try {
-      const res = await fetch(`/api/projects/${projectId}/tasks/bulk`, {
+      const res = await fetch(`${getApiRoot()}/projects/${projectId}/tasks/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ tasks }),

@@ -197,12 +197,35 @@ export default function ProjectDetail() {
       const JsPdfCtor = (jsPdfModule as any).jsPDF ?? (jsPdfModule as any).default;
       if (!JsPdfCtor) throw new Error("PDF library failed to load");
 
-      const totalTasks = tasks.length;
-      const completedTasks = tasks.filter((t) => t.status === "done").length;
-      const inProgressTasks = tasks.filter((t) => t.status === "in_progress").length;
-      const overdueTasks = tasks.filter((t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "done").length;
-      const dueTodayTasks = tasks.filter((t) => t.dueDate && isToday(new Date(t.dueDate)) && t.status !== "done").length;
-      const plannedTasks = tasks.filter((t) => t.startDate || t.dueDate).length;
+      const subtaskResults = await Promise.allSettled(
+        tasks.map(async (parent) => ({
+          parentId: parent.id,
+          subtasks: await listSubtasks(parent.id, getAuthRequest()),
+        })),
+      );
+      const subtasksByParent = new Map<number, Task[]>();
+      subtaskResults.forEach((result) => {
+        if (result.status === "fulfilled") {
+          subtasksByParent.set(result.value.parentId, result.value.subtasks);
+        }
+      });
+
+      const allWorkItems: Task[] = [];
+      tasks.forEach((p) => {
+        allWorkItems.push(p);
+        (subtasksByParent.get(p.id) ?? []).forEach((s) => allWorkItems.push(s));
+      });
+
+      const totalTasks = allWorkItems.length;
+      const completedTasks = allWorkItems.filter((t) => t.status === "done").length;
+      const inProgressTasks = allWorkItems.filter((t) => t.status === "in_progress").length;
+      const overdueTasks = allWorkItems.filter(
+        (t) => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== "done",
+      ).length;
+      const dueTodayTasks = allWorkItems.filter(
+        (t) => t.dueDate && isToday(new Date(t.dueDate)) && t.status !== "done",
+      ).length;
+      const plannedTasks = allWorkItems.filter((t) => t.startDate || t.dueDate).length;
       const onTrackTasks = Math.max(0, totalTasks - overdueTasks - dueTodayTasks);
       const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -239,7 +262,7 @@ export default function ProjectDetail() {
       const cardW = (pageWidth - 46 * 2 - 16 * 2) / 3;
       const cardH = 96;
       const summaryCards: Array<{ label: string; value: string; tone: [number, number, number] }> = [
-        { label: "Total Tasks", value: String(totalTasks), tone: [19, 234, 193] },
+        { label: "Work items (tasks + subtasks)", value: String(totalTasks), tone: [19, 234, 193] },
         { label: "Completed", value: `${completedTasks} (${completionRate}%)`, tone: [16, 185, 129] },
         { label: "In Progress", value: String(inProgressTasks), tone: [35, 167, 229] },
         { label: "Late", value: String(overdueTasks), tone: [239, 68, 68] },
@@ -267,7 +290,69 @@ export default function ProjectDetail() {
 
       pdf.setFontSize(11);
       pdf.setTextColor(86, 112, 103);
-      pdf.text(`Status: ${project.status}   |   Planned tasks (dated): ${plannedTasks}`, 46, pageHeight - 32);
+      pdf.text(`Status: ${project.status}   |   Planned work items (dated): ${plannedTasks}`, 46, pageHeight - 32);
+
+      // Task breakdown (parents with subtasks listed underneath)
+      pdf.addPage("a4", "landscape");
+      pdf.setFillColor(246, 250, 248);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+      pdf.setFontSize(18);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(16, 33, 28);
+      pdf.text("Task breakdown", 46, 44);
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(86, 112, 103);
+      pdf.text("Top-level tasks with subtasks. Undated items appear in the list but may omit timeline bars on the Gantt page.", 46, 62);
+
+      let breakdownY = 86;
+      const breakdownLeft = 46;
+      const breakdownLine = 13;
+      const breakdownMaxY = pageHeight - 36;
+      for (const parent of tasks) {
+        if (breakdownY > breakdownMaxY) {
+          pdf.addPage("a4", "landscape");
+          pdf.setFillColor(246, 250, 248);
+          pdf.rect(0, 0, pageWidth, pageHeight, "F");
+          breakdownY = 52;
+        }
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.setTextColor(16, 33, 28);
+        const parentLines = pdf.splitTextToSize(parent.title, pageWidth - breakdownLeft * 2);
+        pdf.text(parentLines, breakdownLeft, breakdownY);
+        breakdownY += parentLines.length * breakdownLine + 2;
+
+        const subs = subtasksByParent.get(parent.id) ?? [];
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        if (subs.length === 0) {
+          pdf.setTextColor(120, 130, 125);
+          pdf.text("— No subtasks", breakdownLeft + 14, breakdownY);
+          breakdownY += breakdownLine;
+          pdf.setTextColor(16, 33, 28);
+        } else {
+          for (const sub of subs) {
+            if (breakdownY > breakdownMaxY) {
+              pdf.addPage("a4", "landscape");
+              pdf.setFillColor(246, 250, 248);
+              pdf.rect(0, 0, pageWidth, pageHeight, "F");
+              breakdownY = 52;
+            }
+            const st = STATUS_CONFIG[sub.status]?.label ?? sub.status;
+            const due = sub.dueDate ? format(new Date(sub.dueDate), "MMM d, yyyy") : "—";
+            const who = sub.assignee?.name ?? sub.assignee?.email ?? "—";
+            const subLines = pdf.splitTextToSize(
+              `• ${sub.title}  |  ${st}  |  Due: ${due}  |  ${who}`,
+              pageWidth - breakdownLeft - 28,
+            );
+            pdf.setTextColor(40, 55, 48);
+            pdf.text(subLines, breakdownLeft + 18, breakdownY);
+            breakdownY += subLines.length * (breakdownLine - 1) + 4;
+          }
+        }
+        breakdownY += 8;
+      }
 
       const chartX = 40;
       const chartY = 84;
@@ -283,50 +368,64 @@ export default function ProjectDetail() {
       pdf.text(`Gantt Timeline - ${project.name}`, chartX, 42);
       pdf.setFontSize(11);
       pdf.setTextColor(86, 112, 103);
-      pdf.text("Tasks with start/due dates", chartX, 60);
+      pdf.text("Parents and subtasks; timeline bars require a due date", chartX, 60);
 
-      const subtaskResults = await Promise.allSettled(
-        tasks.map(async (parent) => ({
-          parentId: parent.id,
-          subtasks: await listSubtasks(parent.id, getAuthRequest()),
-        })),
-      );
-      const subtasksByParent = new Map<number, Task[]>();
-      subtaskResults.forEach((result) => {
-        if (result.status === "fulfilled") {
-          subtasksByParent.set(result.value.parentId, result.value.subtasks);
-        }
-      });
-
-      const exportRows: (Task & { __isSubtask?: boolean })[] = [];
-      tasks.forEach((parent) => {
-        exportRows.push(parent);
+      type GanttRow = {
+        task: Task & { __isSubtask?: boolean };
+        exportStart?: Date;
+        exportEnd?: Date;
+      };
+      const ganttRowsOrdered: GanttRow[] = [];
+      for (const parent of tasks) {
         const subs = subtasksByParent.get(parent.id) ?? [];
-        subs.forEach((sub) => exportRows.push({ ...sub, __isSubtask: true }));
-      });
+        if (parent.dueDate) {
+          ganttRowsOrdered.push({
+            task: parent,
+            exportStart: parent.startDate
+              ? startOfDay(new Date(parent.startDate))
+              : startOfDay(new Date(parent.dueDate)),
+            exportEnd: startOfDay(new Date(parent.dueDate)),
+          });
+        } else {
+          ganttRowsOrdered.push({ task: parent });
+        }
+        for (const sub of subs) {
+          if (sub.dueDate) {
+            ganttRowsOrdered.push({
+              task: { ...sub, __isSubtask: true },
+              exportStart: sub.startDate
+                ? startOfDay(new Date(sub.startDate))
+                : startOfDay(new Date(sub.dueDate)),
+              exportEnd: startOfDay(new Date(sub.dueDate)),
+            });
+          } else {
+            ganttRowsOrdered.push({ task: { ...sub, __isSubtask: true } });
+          }
+        }
+      }
 
-      const datedTasks = exportRows
-        .filter((t) => t.dueDate)
-        .map((t) => ({
-          ...t,
-          exportStart: t.startDate ? startOfDay(new Date(t.startDate)) : startOfDay(new Date(t.dueDate!)),
-          exportEnd: startOfDay(new Date(t.dueDate!)),
-        }));
+      const datedOnly = ganttRowsOrdered.filter((r) => r.exportStart && r.exportEnd) as Array<
+        GanttRow & { exportStart: Date; exportEnd: Date }
+      >;
 
-      if (datedTasks.length === 0) {
+      if (datedOnly.length === 0) {
         pdf.setFontSize(12);
-        pdf.text("No dated tasks found. Add due dates to include tasks in the Gantt chart.", chartX, chartY + 20);
+        pdf.text(
+          "No dated tasks found. Add due dates to draw timeline bars. See the Task breakdown page for the full list.",
+          chartX,
+          chartY + 20,
+        );
       } else {
-        const minStart = new Date(Math.min(...datedTasks.map((t) => t.exportStart.getTime())));
-        const maxEnd = new Date(Math.max(...datedTasks.map((t) => t.exportEnd.getTime())));
+        const minStart = new Date(Math.min(...datedOnly.map((t) => t.exportStart.getTime())));
+        const maxEnd = new Date(Math.max(...datedOnly.map((t) => t.exportEnd.getTime())));
         const chartStart = addDays(minStart, -2);
         const chartEnd = addDays(maxEnd, 4);
         const totalDays = Math.max(1, differenceInDays(chartEnd, chartStart) + 1);
 
         const labelWidth = 190;
         const headerHeight = 22;
-        const rows = datedTasks.slice(0, 18);
-        const rowHeight = Math.max(14, Math.floor((chartHeight - headerHeight - 10) / Math.max(rows.length, 1)));
+        const rows = ganttRowsOrdered.slice(0, 42);
+        const rowHeight = Math.max(12, Math.floor((chartHeight - headerHeight - 10) / Math.max(rows.length, 1)));
         const timelineWidth = chartWidth - labelWidth;
         const dayWidth = timelineWidth / totalDays;
 
@@ -353,27 +452,34 @@ export default function ProjectDetail() {
           done: [16, 185, 129],
         };
 
-        rows.forEach((task, idx) => {
+        rows.forEach((row, idx) => {
+          const task = row.task;
           const y = chartY + headerHeight + idx * rowHeight;
           pdf.setDrawColor(231, 238, 235);
           pdf.line(chartX, y + rowHeight, chartX + chartWidth, y + rowHeight);
 
           pdf.setFontSize(9);
           pdf.setTextColor(24, 42, 35);
-          const taskTitle = task.__isSubtask ? `- ${task.title}` : task.title;
-          const label = taskTitle.length > 34 ? `${taskTitle.slice(0, 31)}...` : taskTitle;
-          const labelX = task.__isSubtask ? chartX + 18 : chartX + 6;
+          const taskTitle = task.__isSubtask ? `— ${task.title}` : task.title;
+          const label = taskTitle.length > 38 ? `${taskTitle.slice(0, 35)}…` : taskTitle;
+          const labelX = task.__isSubtask ? chartX + 20 : chartX + 6;
           pdf.text(label, labelX, y + rowHeight * 0.68);
 
-          const startOffset = Math.max(0, differenceInDays(task.exportStart, chartStart));
-          const duration = Math.max(1, differenceInDays(task.exportEnd, task.exportStart) + 1);
-          const barX = chartX + labelWidth + startOffset * dayWidth;
-          const barW = Math.max(2, duration * dayWidth - 1);
-          const barY = y + Math.max(2, rowHeight * 0.22);
-          const barH = Math.max(6, rowHeight * 0.56);
-          const [r, g, b] = statusColor[task.status] ?? [54, 141, 232];
-          pdf.setFillColor(r, g, b);
-          pdf.roundedRect(barX, barY, barW, barH, 2, 2, "F");
+          if (row.exportStart && row.exportEnd) {
+            const startOffset = Math.max(0, differenceInDays(row.exportStart, chartStart));
+            const duration = Math.max(1, differenceInDays(row.exportEnd, row.exportStart) + 1);
+            const barX = chartX + labelWidth + startOffset * dayWidth;
+            const barW = Math.max(2, duration * dayWidth - 1);
+            const barY = y + Math.max(2, rowHeight * 0.22);
+            const barH = Math.max(6, rowHeight * 0.56);
+            const [r, g, b] = statusColor[task.status] ?? [54, 141, 232];
+            pdf.setFillColor(r, g, b);
+            pdf.roundedRect(barX, barY, barW, barH, 2, 2, "F");
+          } else {
+            pdf.setFontSize(7);
+            pdf.setTextColor(140, 150, 145);
+            pdf.text("no due date", chartX + labelWidth + 4, y + rowHeight * 0.62);
+          }
         });
       }
 

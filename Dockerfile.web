@@ -1,4 +1,6 @@
-FROM node:20 AS builder
+# linux/amd64: workspace pnpm overrides drop Rollup/Tailwind native linux-arm64 optionals; arm64
+# Docker builds would fail with "Cannot find @rollup/rollup-linux-arm64-gnu". Matches typical VPS.
+FROM --platform=linux/amd64 node:20 AS builder
 WORKDIR /app
 RUN npm install -g pnpm
 
@@ -20,7 +22,7 @@ ARG VITE_PM_SIGNIN_PATH=login
 # server, not the build output), BASE_PATH=/ for a standalone deployment
 RUN PORT=3000 BASE_PATH=/pm VITE_PM_SIGNIN_PATH=${VITE_PM_SIGNIN_PATH} pnpm --filter @workspace/pm-tool run build
 
-FROM nginx:alpine
+FROM --platform=linux/amd64 nginx:alpine
 COPY --from=builder /app/artifacts/pm-tool/dist/public /usr/share/nginx/html
 # Proxy /api/* to the API container and serve SPA fallback for all other routes
 COPY nginx.conf /etc/nginx/conf.d/default.conf

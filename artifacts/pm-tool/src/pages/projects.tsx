@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout";
 import { useListProjects, useCreateProject } from "@workspace/api-client-react";
-import { getAuthRequest } from "@/lib/api-helpers";
+import { getApiRoot, getAuthRequest } from "@/lib/api-helpers";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, FolderKanban, CheckCircle2 } from "lucide-react";
+import { Plus, Search, FolderKanban, CheckCircle2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
@@ -31,6 +31,7 @@ export default function Projects() {
   const { data: projects, isLoading } = useListProjects({ request: getAuthRequest() });
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRephrasingDescription, setIsRephrasingDescription] = useState(false);
   const createMutation = useCreateProject({ request: getAuthRequest() });
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -39,6 +40,48 @@ export default function Projects() {
     resolver: zodResolver(createProjectSchema),
     defaultValues: { name: "", description: "", color: COLORS[0] },
   });
+
+  const handleRephraseDescription = async () => {
+    const currentDescription = form.getValues("description")?.trim() || "";
+    if (!currentDescription) {
+      toast({ variant: "destructive", title: "Add a description first" });
+      return;
+    }
+    const name = form.getValues("name")?.trim() || "";
+    setIsRephrasingDescription(true);
+    try {
+      const response = await fetch(`${getApiRoot()}/projects/rephrase-description`, {
+        method: "POST",
+        headers: {
+          ...getAuthRequest().headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.length > 0 ? name : "Untitled project",
+          description: currentDescription,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        description?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      }
+      if (!data.description) throw new Error("Empty rephrased description");
+      form.setValue("description", data.description, { shouldDirty: true });
+      toast({ title: "Description rephrased" });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Failed to rephrase description",
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setIsRephrasingDescription(false);
+    }
+  };
 
   const onSubmit = async (data: CreateProjectForm) => {
     try {
@@ -91,7 +134,20 @@ export default function Projects() {
                     {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label>Description</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Description</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRephraseDescription}
+                        disabled={isRephrasingDescription}
+                        className="h-8 rounded-lg gap-1.5 shrink-0"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {isRephrasingDescription ? "Rephrasing..." : "AI Rephrase"}
+                      </Button>
+                    </div>
                     <Textarea {...form.register("description")} className="bg-background resize-none" placeholder="Brief description of the project..." rows={3} />
                   </div>
                   <div className="space-y-2">

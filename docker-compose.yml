@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+  # Spring Boot API (new backend)
+  springapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.springboot.api
+    environment:
+      PORT: 8081
+      PGHOST: hayyah-postgres
+      PGPORT: 5432
+      PGDATABASE: marketmind
+      PGUSER: postgres
+      PGPASSWORD: Jw8S0F4gbxi0zqm7
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
+      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
+      PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-http://localhost:5173}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
+      OLLAMA_THINK: ${OLLAMA_THINK:-false}
+    # publish for host curl/debug; other services reach this service on the Docker network on 8081 without `expose`
+    ports:
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8081/api/actuator/health/liveness >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 90s
+
+  # Optional: keep existing /api/* wiring alive by pointing it at Spring too.
+  # If you later run the old Node API, you can remove this and update `nginx.conf`.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.springboot.api
+    environment:
+      PORT: 8081
+      DATABASE_URL: ${DATABASE_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
+      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
+      PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-http://localhost:5173}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
+      OLLAMA_THINK: ${OLLAMA_THINK:-false}
+    expose:
+      - "8081/tcp"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8081/api/actuator/health/liveness >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 90s
+
+  # docker compose --profile web up -d springapi web
+  web:
+    profiles: ["web"]
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "84:80"
+    # Object form (no "-") is required for condition:. "- springapi:" is invalid YAML for Compose.
+    depends_on:
+      springapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      springapi:
+        condition: service_healthy
+

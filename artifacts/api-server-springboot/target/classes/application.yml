@@ -1,0 +1,71 @@
+server:
+  port: ${PORT:8081}
+  servlet:
+    # keep the same route shapes as the Node app that mounts everything under /api
+    context-path: /api
+
+# Docker / k8s: use /api/actuator/health/liveness (UP when process is alive; no DB).
+# Full /api/actuator/health includes DB and can stay OUT_OF_SERVICE until Postgres is ready.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+spring:
+  application:
+    name: pm-api-springboot
+  # DB: either set DATABASE_URL (Node-style postgresql://...) or use spring.datasource.* below (PGHOST/PGDATABASE/...).
+  sql:
+    init:
+      # Apply classpath:schema.sql (idempotent). Set SPRING_SQL_INIT_MODE=never if you only use drizzle-kit push / Flyway.
+      mode: ${SPRING_SQL_INIT_MODE:always}
+      # Default ";" splits inside PostgreSQL DO $$ ... $$ blocks; use a delimiter that never appears in SQL.
+      separator: "@@"
+  jpa:
+    database: POSTGRESQL
+    show-sql: true
+    open-in-view: false
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: none
+  datasource:
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:marketmind}
+    username: ${PGUSER:postgres}
+    password: ${PGPASSWORD:Jw8S0F4gbxi0zqm7}
+    driver-class-name: org.postgresql.Driver
+
+  # Optional: leave host empty locally. JavaMailSender is only created when host is non-blank
+  # (see OptionalMailSenderConfiguration). Avoids MailSenderAutoConfiguration failing on missing env.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+
+# Ollama
+ollama:
+  baseUrl: ${OLLAMA_BASE_URL:http://149.102.140.178:7869}
+  model: ${OLLAMA_MODEL:qwen3.5:0.8b}
+  think: ${OLLAMA_THINK:false}
+
+# Email toggle
+email:
+  enabled: ${EMAIL_ENABLED:true}
+
+# Idempotent default login for empty DB (disable in production: PM_SEED_DEFAULT_USER=false)
+pm:
+  seed:
+    default-user:
+      enabled: ${PM_SEED_DEFAULT_USER:true}
+      email: ${PM_DEFAULT_USER_EMAIL:dev@example.com}
+      name: ${PM_DEFAULT_USER_NAME:Dev}
+      password: ${PM_DEFAULT_USER_PASSWORD:changeme}
+      role: ${PM_DEFAULT_USER_ROLE:admin}
+
+
+
