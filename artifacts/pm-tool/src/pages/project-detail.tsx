@@ -424,26 +424,15 @@ export default function ProjectDetail() {
 
         const labelWidth = 190;
         const headerHeight = 22;
-        const rows = ganttRowsOrdered.slice(0, 42);
-        const rowHeight = Math.max(12, Math.floor((chartHeight - headerHeight - 10) / Math.max(rows.length, 1)));
         const timelineWidth = chartWidth - labelWidth;
         const dayWidth = timelineWidth / totalDays;
-
-        pdf.setDrawColor(212, 226, 220);
-        pdf.setFillColor(247, 251, 249);
-        pdf.rect(chartX, chartY, chartWidth, chartHeight, "FD");
-
-        pdf.setFontSize(9);
-        for (let d = 0; d <= totalDays; d += 1) {
-          const x = chartX + labelWidth + d * dayWidth;
-          pdf.setDrawColor(226, 236, 232);
-          pdf.line(x, chartY + headerHeight, x, chartY + chartHeight);
-          if (d < totalDays && (d % 5 === 0 || d === 0)) {
-            const date = addDays(chartStart, d);
-            pdf.setTextColor(85, 109, 99);
-            pdf.text(format(date, "MMM d"), x + 2, chartY + 14);
-          }
-        }
+        /** Minimum row height (pt) — avoids squeezing hundreds of rows into one page (was clipping the chart). */
+        const minRowHeight = 15;
+        const bodyPad = 12;
+        const bodyHeight = chartHeight - headerHeight - bodyPad;
+        const maxRowsPerPage = Math.max(1, Math.floor(bodyHeight / minRowHeight));
+        const allGanttRows = ganttRowsOrdered;
+        const totalGanttRows = allGanttRows.length;
 
         const statusColor: Record<string, [number, number, number]> = {
           todo: [123, 148, 139],
@@ -452,35 +441,89 @@ export default function ProjectDetail() {
           done: [16, 185, 129],
         };
 
-        rows.forEach((row, idx) => {
-          const task = row.task;
-          const y = chartY + headerHeight + idx * rowHeight;
-          pdf.setDrawColor(231, 238, 235);
-          pdf.line(chartX, y + rowHeight, chartX + chartWidth, y + rowHeight);
+        const drawGanttChunk = (rows: typeof allGanttRows, globalOffset: number) => {
+          const rowHeight = Math.max(
+            minRowHeight,
+            Math.floor(bodyHeight / Math.max(rows.length, 1)),
+          );
+
+          pdf.setDrawColor(212, 226, 220);
+          pdf.setFillColor(247, 251, 249);
+          pdf.rect(chartX, chartY, chartWidth, chartHeight, "FD");
 
           pdf.setFontSize(9);
-          pdf.setTextColor(24, 42, 35);
-          const taskTitle = task.__isSubtask ? `— ${task.title}` : task.title;
-          const label = taskTitle.length > 38 ? `${taskTitle.slice(0, 35)}…` : taskTitle;
-          const labelX = task.__isSubtask ? chartX + 20 : chartX + 6;
-          pdf.text(label, labelX, y + rowHeight * 0.68);
-
-          if (row.exportStart && row.exportEnd) {
-            const startOffset = Math.max(0, differenceInDays(row.exportStart, chartStart));
-            const duration = Math.max(1, differenceInDays(row.exportEnd, row.exportStart) + 1);
-            const barX = chartX + labelWidth + startOffset * dayWidth;
-            const barW = Math.max(2, duration * dayWidth - 1);
-            const barY = y + Math.max(2, rowHeight * 0.22);
-            const barH = Math.max(6, rowHeight * 0.56);
-            const [r, g, b] = statusColor[task.status] ?? [54, 141, 232];
-            pdf.setFillColor(r, g, b);
-            pdf.roundedRect(barX, barY, barW, barH, 2, 2, "F");
-          } else {
-            pdf.setFontSize(7);
-            pdf.setTextColor(140, 150, 145);
-            pdf.text("no due date", chartX + labelWidth + 4, y + rowHeight * 0.62);
+          for (let d = 0; d <= totalDays; d += 1) {
+            const x = chartX + labelWidth + d * dayWidth;
+            pdf.setDrawColor(226, 236, 232);
+            pdf.line(x, chartY + headerHeight, x, chartY + chartHeight);
+            if (d < totalDays && (d % 5 === 0 || d === 0)) {
+              const date = addDays(chartStart, d);
+              pdf.setTextColor(85, 109, 99);
+              pdf.text(format(date, "MMM d"), x + 2, chartY + 14);
+            }
           }
-        });
+
+          rows.forEach((row, idx) => {
+            const task = row.task;
+            const y = chartY + headerHeight + idx * rowHeight;
+            pdf.setDrawColor(231, 238, 235);
+            pdf.line(chartX, y + rowHeight, chartX + chartWidth, y + rowHeight);
+
+            pdf.setFontSize(9);
+            pdf.setTextColor(24, 42, 35);
+            const taskTitle = task.__isSubtask ? `— ${task.title}` : task.title;
+            const label = taskTitle.length > 38 ? `${taskTitle.slice(0, 35)}…` : taskTitle;
+            const labelX = task.__isSubtask ? chartX + 20 : chartX + 6;
+            pdf.text(label, labelX, y + rowHeight * 0.68);
+
+            if (row.exportStart && row.exportEnd) {
+              const startOffset = Math.max(0, differenceInDays(row.exportStart, chartStart));
+              const duration = Math.max(1, differenceInDays(row.exportEnd, row.exportStart) + 1);
+              const barX = chartX + labelWidth + startOffset * dayWidth;
+              const barW = Math.max(2, duration * dayWidth - 1);
+              const barY = y + Math.max(2, rowHeight * 0.22);
+              const barH = Math.max(6, rowHeight * 0.56);
+              const [r, g, b] = statusColor[task.status] ?? [54, 141, 232];
+              pdf.setFillColor(r, g, b);
+              pdf.roundedRect(barX, barY, barW, barH, 2, 2, "F");
+            } else {
+              pdf.setFontSize(7);
+              pdf.setTextColor(140, 150, 145);
+              pdf.text("no due date", chartX + labelWidth + 4, y + rowHeight * 0.62);
+            }
+          });
+
+          pdf.setFontSize(8);
+          pdf.setTextColor(120, 130, 125);
+          const shownFrom = globalOffset + 1;
+          const shownTo = globalOffset + rows.length;
+          pdf.text(`Gantt rows ${shownFrom}–${shownTo} of ${totalGanttRows}`, chartX, pageHeight - 22);
+        };
+
+        for (
+          let offset = 0, pageIndex = 0;
+          offset < allGanttRows.length;
+          offset += maxRowsPerPage, pageIndex += 1
+        ) {
+          if (pageIndex > 0) {
+            pdf.addPage("a4", "landscape");
+            pdf.setFillColor(248, 251, 250);
+            pdf.rect(0, 0, pageWidth, pageHeight, "F");
+            pdf.setFontSize(18);
+            pdf.setFont("helvetica", "bold");
+            pdf.setTextColor(16, 33, 28);
+            pdf.text(`Gantt Timeline - ${project.name} (continued)`, chartX, 42);
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(11);
+            pdf.setTextColor(86, 112, 103);
+            const contFrom = offset + 1;
+            const contTo = Math.min(offset + maxRowsPerPage, totalGanttRows);
+            pdf.text(`Rows ${contFrom}–${contTo} of ${totalGanttRows} — same date range as previous page`, chartX, 60);
+          }
+
+          const chunk = allGanttRows.slice(offset, offset + maxRowsPerPage);
+          drawGanttChunk(chunk, offset);
+        }
       }
 
       pdf.save(`${project.name.replace(/\s+/g, "-").toLowerCase()}-gantt-report.pdf`);
