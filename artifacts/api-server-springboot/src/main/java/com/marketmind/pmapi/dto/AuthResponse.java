@@ -1,6 +1,6 @@
 package com.marketmind.pmapi.dto;
 
-import com.marketmind.pmapi.models.User;
+import com.marketmind.pmapi.model.User;
 
 public class AuthResponse {
   public User user;

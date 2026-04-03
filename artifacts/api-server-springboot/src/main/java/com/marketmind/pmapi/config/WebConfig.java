@@ -1,6 +1,6 @@
 package com.marketmind.pmapi.config;
 
-import com.marketmind.pmapi.security.BearerAuthInterceptor;
+import com.marketmind.pmapi.config.BearerAuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;

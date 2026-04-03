@@ -13,7 +13,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Auth is enforced by {@link com.marketmind.pmapi.security.BearerAuthInterceptor}, matching the
+ * Auth is enforced by {@link com.marketmind.pmapi.config.BearerAuthInterceptor}, matching the
  * Node app. Spring Security must not block requests before they reach MVC (default starter
  * behavior would require login and enable CSRF on POSTs).
  */
