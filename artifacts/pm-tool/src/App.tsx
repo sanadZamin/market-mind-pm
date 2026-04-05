@@ -7,7 +7,8 @@ import { AuthProvider, ProtectedRoute } from "@/lib/auth";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/login";
-import Splash from "@/pages/splash";
+import TechnologyLanding from "@/pages/technology-landing";
+import PricingLanding from "@/pages/pricing-landing";
 import FeatureDemo from "@/pages/feature-demo";
 import { getSignInPath } from "@/lib/app-entry";
 import Dashboard from "@/pages/dashboard";
@@ -29,7 +30,8 @@ function RegisterToLoginRedirect() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Splash} />
+      <Route path="/" component={TechnologyLanding} />
+      <Route path="/pricing" component={PricingLanding} />
       <Route path={signInPath} component={Login} />
       <Route path="/demo" component={FeatureDemo} />
       <Route path="/register" component={RegisterToLoginRedirect} />
