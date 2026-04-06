@@ -8,12 +8,29 @@ import { Check } from "lucide-react";
 
 const signInPath = getSignInPath();
 
-const plans = [
+type PlanFeature = { label: string; included: boolean };
+
+const plans: {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: PlanFeature[];
+  cta: string;
+  featured: boolean;
+  primary: boolean;
+}[] = [
   {
     name: "Tactical Base",
     price: "$249",
     period: "/mo",
-    features: ["3 AI agents", "24-h depth", "Standard API"],
+    description: "Precision tools for the individual quantitative trader.",
+    features: [
+      { label: "3 AI deployment agents", included: true },
+      { label: "24h historical depth", included: true },
+      { label: "Standard API access", included: true },
+      { label: "Advanced risk modeling", included: false },
+    ],
     cta: "Initialize Basic",
     featured: false,
     primary: false,
@@ -22,7 +39,14 @@ const plans = [
     name: "Market Pro",
     price: "$899",
     period: "/mo",
-    features: ["10 AI agents", "2-year depth", "High-speed WebSocket API", "Risk modeling", "Sentiment analysis"],
+    description: "High-frequency neural processing for serious capital allocation.",
+    features: [
+      { label: "15 AI deployment agents", included: true },
+      { label: "2-year historical depth", included: true },
+      { label: "High-speed WebSocket API", included: true },
+      { label: "Advanced risk modeling", included: true },
+      { label: "Neural sentiment analysis", included: true },
+    ],
     cta: "Launch Market Pro",
     featured: true,
     primary: true,
@@ -31,19 +55,25 @@ const plans = [
     name: "Sovereign Core",
     price: "$4,500",
     period: "/mo",
-    features: ["Unlimited AI swarms", "Infinite depth", "Dedicated bare metal node", "Custom model training"],
+    description: "The full power of Market Mind for desks and institutions.",
+    features: [
+      { label: "Unlimited AI swarms", included: true },
+      { label: "Infinite historical depth", included: true },
+      { label: "Dedicated bare-metal node", included: true },
+      { label: "Custom model training", included: true },
+    ],
     cta: "Contact Enterprise",
     featured: false,
     primary: false,
   },
-] as const;
+];
 
-const specRows: { cap: string; tactical: string; pro: string; sovereign: string }[] = [
-  { cap: "Neural agents", tactical: "3 total", pro: "10 total", sovereign: "Unlimited swarm" },
-  { cap: "API latency", tactical: "Standard (17ms)", pro: "Optimized (7ms)", sovereign: "Zero-link (<1ms)" },
-  { cap: "Data horizon", tactical: "24 hours", pro: "2 years", sovereign: "Ultradeep archive" },
-  { cap: "Neural tuning", tactical: "—", pro: "check", sovereign: "check" },
-  { cap: "Compliance suite", tactical: "—", pro: "—", sovereign: "check" },
+const specRows: { cap: string; starter: string; pro: string; sovereign: string }[] = [
+  { cap: "Neural agents", starter: "3 total", pro: "15 total", sovereign: "Unlimited swarm" },
+  { cap: "API latency", starter: "Standard (50ms)", pro: "Optimized (8ms)", sovereign: "Zero-link (<1ms)" },
+  { cap: "Data horizon", starter: "24 hours", pro: "2 years", sovereign: "Genesis archive" },
+  { cap: "Neural tuning", starter: "—", pro: "check", sovereign: "check" },
+  { cap: "Compliance suite", starter: "—", pro: "—", sovereign: "check" },
 ];
 
 function CommandCenterVisual() {
@@ -110,6 +140,24 @@ function CellValue({ value }: { value: string }) {
   return <span>{value}</span>;
 }
 
+function FeatureRow({ feature }: { feature: PlanFeature }) {
+  return (
+    <li className="flex items-start gap-2.5 text-sm">
+      {feature.included ? (
+        <>
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={2.5} />
+          <span className="text-[#94a3b8]">{feature.label}</span>
+        </>
+      ) : (
+        <>
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04]" />
+          <span className="text-white/35 line-through decoration-white/20">{feature.label}</span>
+        </>
+      )}
+    </li>
+  );
+}
+
 export default function PricingLanding() {
   return (
     <MarketingLayout>
@@ -133,15 +181,14 @@ export default function PricingLanding() {
           </p>
         </section>
 
-        {/* Pricing cards */}
         <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3 lg:gap-5">
             {plans.map((plan) => (
               <div
                 key={plan.name}
                 className={`relative flex flex-col rounded-2xl border p-6 backdrop-blur-sm sm:p-8 ${
                   plan.featured
-                    ? "border-primary/40 bg-white/[0.05] shadow-[0_0_60px_-20px_hsl(var(--primary)/0.45)]"
+                    ? "border-primary/45 bg-white/[0.05] shadow-[0_0_60px_-20px_hsl(var(--primary)/0.45)] lg:-my-2 lg:scale-[1.02] lg:px-7 lg:py-10"
                     : "border-white/[0.08] bg-white/[0.03]"
                 }`}
               >
@@ -150,17 +197,15 @@ export default function PricingLanding() {
                     Recommended
                   </span>
                 )}
-                <h2 className="font-display text-lg font-bold text-white">{plan.name}</h2>
+                <h2 className="font-display text-lg font-bold uppercase tracking-wide text-white">{plan.name}</h2>
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-4xl font-bold tracking-tight text-white">{plan.price}</span>
                   <span className="text-sm text-white/45">{plan.period}</span>
                 </div>
-                <ul className="mt-8 flex flex-1 flex-col gap-3 text-left text-sm text-[#94a3b8]">
+                <p className="mt-3 text-left text-sm leading-relaxed text-[#94a3b8]">{plan.description}</p>
+                <ul className="mt-8 flex flex-1 flex-col gap-3 text-left">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>{f}</span>
-                    </li>
+                    <FeatureRow key={f.label} feature={f} />
                   ))}
                 </ul>
                 {plan.primary ? (
@@ -184,18 +229,19 @@ export default function PricingLanding() {
           </div>
         </section>
 
-        {/* Spec table */}
         <section className="border-y border-white/[0.06] bg-black/25 py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <h2 className="text-center font-display text-2xl font-bold text-white sm:text-3xl">Protocol specifications</h2>
-            <div className="mt-10 overflow-x-auto rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md">
+            <h2 className="text-center font-display text-2xl font-bold text-white sm:text-3xl">
+              Protocol specifications
+            </h2>
+            <div className="mt-10 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#060d0a]/80 backdrop-blur-md">
               <table className="w-full min-w-[640px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.08]">
-                    <th className="px-5 py-4 font-semibold uppercase tracking-wider text-white/45">Capability</th>
-                    <th className="px-5 py-4 font-semibold uppercase tracking-wider text-white/45">Tactical</th>
-                    <th className="px-5 py-4 font-semibold uppercase tracking-wider text-primary">Pro</th>
-                    <th className="px-5 py-4 font-semibold uppercase tracking-wider text-white/45">Sovereign</th>
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-white/45">Capability</th>
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-white/45">Starter</th>
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-primary">Pro</th>
+                    <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-white/45">Sovereign</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -203,7 +249,7 @@ export default function PricingLanding() {
                     <tr key={row.cap} className="border-b border-white/[0.05] last:border-0">
                       <td className="px-5 py-4 font-medium text-white/85">{row.cap}</td>
                       <td className="px-5 py-4 text-[#94a3b8]">
-                        <CellValue value={row.tactical} />
+                        <CellValue value={row.starter} />
                       </td>
                       <td className="px-5 py-4 text-[#94a3b8]">
                         <CellValue value={row.pro} />
@@ -219,7 +265,6 @@ export default function PricingLanding() {
           </div>
         </section>
 
-        {/* CTA */}
         <section className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
@@ -227,8 +272,7 @@ export default function PricingLanding() {
                 Ready to augment your capital?
               </h2>
               <p className="mt-5 text-base leading-relaxed text-[#94a3b8]">
-                Deploy your first neural agent in under five minutes. No credit card required to explore the console —
-                upgrade when you&apos;re ready for production throughput.
+                Deploy your first neural agent in under five minutes. No credit card required for initial tactical testing.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
@@ -240,7 +284,7 @@ export default function PricingLanding() {
                 <Button
                   asChild
                   variant="outline"
-                  className="h-11 rounded-xl border-white/20 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+                  className="h-11 rounded-xl border-white/20 bg-white/[0.06] text-white hover:bg-white/[0.1]"
                 >
                   <Link href="/demo">Request live demo</Link>
                 </Button>

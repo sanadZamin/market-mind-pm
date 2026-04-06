@@ -4,7 +4,15 @@ import { MarketingNav } from "@/components/marketing/marketing-nav";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { Button } from "@/components/ui/button";
 import { getSignInPath } from "@/lib/app-entry";
-import { Check, Cpu, Network, Newspaper, Share2 } from "lucide-react";
+import {
+  Check,
+  Database,
+  Network,
+  Newspaper,
+  Search,
+  Share2,
+  Zap,
+} from "lucide-react";
 
 const signInPath = getSignInPath();
 
@@ -43,17 +51,14 @@ export default function TechnologyLanding() {
       <MarketingNav active="technology" />
 
       <main className="relative">
-        {/* Hero */}
         <section className="mx-auto max-w-4xl px-4 pb-20 pt-12 text-center sm:px-6 sm:pt-16 lg:px-8">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
             <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
-            Neural Engine · Core v4.1
+            Engine: Neural Core v2.0
           </div>
           <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
             The Anatomy of{" "}
-            <span className="bg-gradient-to-r from-primary to-emerald-300 bg-clip-text text-transparent">
-              Financial Intelligence
-            </span>
+            <span className="font-serif italic font-semibold text-primary">Financial Intelligence</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[#94a3b8] sm:text-lg">
             Beyond traditional algorithmic trading, Market Mind leverages a multi-layered neural architecture to predict
@@ -64,17 +69,20 @@ export default function TechnologyLanding() {
         {/* Bento */}
         <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8 md:min-h-[280px]">
-              <h2 className="font-display text-xl font-bold text-white sm:text-2xl">Machine Learning (ML)</h2>
+            <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8 md:min-h-[300px]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Core capability</p>
+              <h2 className="mt-2 font-display text-xl font-bold text-white sm:text-2xl">Machine Learning (ML)</h2>
               <p className="mt-4 text-sm leading-relaxed text-[#94a3b8] sm:text-base">
                 Our supervised learning models ingest 40+ years of historical market cycles, identifying patterns invisible
                 to human analysts and surfacing regime shifts before they propagate across venues.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
-                <span className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/55">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/65">
+                  <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
                   Data ingestion
                 </span>
-                <span className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/55">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/65">
+                  <Search className="h-3.5 w-3.5 text-primary" aria-hidden />
                   Pattern recognition
                 </span>
               </div>
@@ -82,16 +90,16 @@ export default function TechnologyLanding() {
 
             <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
-                <Cpu className="h-5 w-5 text-primary" />
+                <Zap className="h-5 w-5 text-primary" />
               </div>
               <h2 className="font-display text-lg font-bold text-white sm:text-xl">Predictive Latency</h2>
               <p className="mt-3 text-sm leading-relaxed text-[#94a3b8]">
-                Execution is reduced to sub-microsecond latency through co-located inference and adaptive batching
-                across our edge mesh.
+                Execution pipelines are tuned for sub-8ms end-to-end lag with deterministic scheduling across our
+                inference mesh.
               </p>
               <div className="mt-6">
                 <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                  <span>Accuracy</span>
+                  <span>Performance</span>
                   <span className="text-primary">94.2%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
@@ -101,90 +109,95 @@ export default function TechnologyLanding() {
             </article>
 
             <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8">
-              <h2 className="font-display text-lg font-bold text-white sm:text-xl">Deep Reinforcement Learning (DRL)</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/90">Strategic execution</p>
+              <h2 className="mt-2 font-display text-lg font-bold text-white sm:text-xl">Deep Reinforcement Learning (DRL)</h2>
               <p className="mt-3 text-sm leading-relaxed text-[#94a3b8]">
-                DRL agents act as autonomous traders within a simulated environment, continuously optimizing policies
-                against slippage, fees, and adverse selection.
+                DRL agents act as autonomous traders within high-fidelity simulators, continuously optimizing policies for
+                alpha generation under realistic microstructure.
               </p>
-              <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-6 text-xs">
-                <div>
-                  <p className="font-semibold uppercase tracking-wider text-white/40">Objective</p>
-                  <p className="mt-1 text-white/80">Reward maximization</p>
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-white/[0.07] bg-black/25 px-3 py-3">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">Policy gradient</p>
+                  <p className="mt-1 text-xs font-medium text-white/85">Reward maximization</p>
                 </div>
-                <div>
-                  <p className="font-semibold uppercase tracking-wider text-white/40">Output</p>
-                  <p className="mt-1 text-white/80">State-action maps</p>
+                <div className="rounded-lg border border-white/[0.07] bg-black/25 px-3 py-3">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">Q-learning</p>
+                  <p className="mt-1 text-xs font-medium text-white/85">State-action maps</p>
                 </div>
               </div>
             </article>
 
             <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8">
-              <h2 className="font-display text-lg font-bold text-white sm:text-xl">Semantic Intelligence</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/90">Cognitive processing</p>
+              <h2 className="mt-2 font-display text-lg font-bold text-white sm:text-xl">Semantic Intelligence</h2>
               <p className="mt-3 text-sm leading-relaxed text-[#94a3b8]">
-                Our large language models scan thousands of news outlets, social signals, and SEC filings to quantify
-                narrative risk in real time.
+                Our large language models scan thousands of news outlets, social signals, and SEC filings to produce
+                structured sentiment scores and event graphs.
               </p>
               <div className="mt-5 flex items-center gap-3 text-white/35">
-                <Share2 className="h-4 w-4" aria-hidden />
                 <Newspaper className="h-4 w-4" aria-hidden />
+                <Share2 className="h-4 w-4" aria-hidden />
                 <span className="text-lg font-bold leading-none text-white/25">𝕏</span>
               </div>
               <p className="mt-4 text-[10px] font-semibold uppercase tracking-widest text-primary/90">
-                Sentiment analysis engine 3.0
+                Cross-signal correlation
               </p>
             </article>
           </div>
         </section>
 
-        {/* Architecture */}
+        {/* Five-layer architecture */}
         <section className="border-y border-white/[0.06] bg-black/20 py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-xs font-bold uppercase tracking-[0.25em] text-primary">Unified platform architecture</p>
+            <p className="text-center text-xs font-bold uppercase tracking-[0.25em] text-primary">
+              Unified platform architecture
+            </p>
             <h2 className="mx-auto mt-3 max-w-2xl text-center font-display text-2xl font-bold text-white sm:text-3xl">
               The symbiotic relationship between raw data, intelligence, and execution.
             </h2>
 
-            <div className="mt-16 grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_auto_1fr] lg:gap-8">
-              <div className="flex flex-col gap-4">
-                <ArchCard title="Data layer" body="Multi-source high-frequency ticks, order book deltas, and cross-venue liquidity signals normalized to a single stream." />
-                <ArchCard title="Semantic layer" body="LLM-driven market news, filings, and alt-data fused into structured features for downstream agents." />
-              </div>
-
-              <div className="relative flex justify-center py-4 lg:py-0">
-                <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 hidden h-px w-[120%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-primary/45 to-transparent lg:block"
-                  style={{ maxWidth: "min(100vw, 28rem)" }}
-                />
-                <div className="relative z-[1] flex h-36 w-36 items-center justify-center rounded-2xl border border-primary/35 bg-primary/10 shadow-[0_0_48px_-12px_hsl(var(--primary))] sm:h-40 sm:w-40">
-                  <Network className="h-14 w-14 text-primary" strokeWidth={1.15} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <ArchCard title="Decision layer" body="DRL policy evaluation and ensemble scoring before orders leave the neural core." />
-                <ArchCard title="Execution layer" body="Smart order routing, dark pool access, and latency-aware venue selection." />
-              </div>
+            <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <PipelineCard
+                title="Data source layer"
+                body="Real-time market ticks, depth-of-book updates, and institutional news wires normalized into a single chronological stream."
+              />
+              <PipelineCard
+                title="Data engineering layer"
+                body="Sentiment scoring, feature stores, and vector indexes prepared for low-latency retrieval by strategy agents."
+              />
+              <PipelineCard
+                title="Financial LLMs"
+                body="FinGPT, FinMA, and FinML variants specialized for filings, transcripts, and macro commentary — with guardrailed tool use."
+                highlight
+                tags={["FinGPT", "FinMA", "FinML"]}
+              />
+              <PipelineCard
+                title="Task layer"
+                body="Market forecasting jobs, automated research memos, and compliance summaries orchestrated as durable agent workflows."
+              />
+              <PipelineCard
+                title="Foundation models"
+                body="Llama 2, Claude 3, and Gemini adapters with strict tenancy isolation and encrypted weight caches."
+                tags={["Llama 2", "Claude 3", "Gemini"]}
+                className="sm:col-span-2 lg:col-span-1"
+              />
             </div>
           </div>
         </section>
 
-        {/* Risk */}
         <section className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <NeuralGlowVisual />
             <div>
               <h2 className="font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
-                Hyper-Dimensional{" "}
-                <span className="bg-gradient-to-r from-primary to-teal-300 bg-clip-text text-transparent">
-                  Risk Management
-                </span>
+                Hyper-Dimensional <span className="text-primary">Risk Management</span>
               </h2>
               <p className="mt-5 text-base leading-relaxed text-[#94a3b8]">
                 Every potential trade is stress-tested against 10,000 synthetic market scenarios. Our DRL engine
                 doesn&apos;t just look for profit; it solves for survivability in extreme tail-risk events.
               </p>
               <ul className="mt-8 space-y-4">
-                {["Auto-hedging protocols", "Real-time slippage optimization"].map((item) => (
+                {["Auto-Hedging Protocols", "Real-Time Slippage Optimization"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-sm font-medium text-white/90">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15">
                       <Check className="h-4 w-4 text-primary" strokeWidth={2.5} />
@@ -209,11 +222,37 @@ export default function TechnologyLanding() {
   );
 }
 
-function ArchCard({ title, body }: { title: string; body: string }) {
+function PipelineCard({
+  title,
+  body,
+  highlight,
+  tags,
+  className = "",
+}: {
+  title: string;
+  body: string;
+  highlight?: boolean;
+  tags?: string[];
+  className?: string;
+}) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-primary">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-[#94a3b8]">{body}</p>
+    <div
+      className={`flex flex-col rounded-2xl border bg-white/[0.03] p-5 backdrop-blur-sm ${highlight ? "border-primary/45 shadow-[0_0_32px_-12px_hsl(var(--primary)/0.35)]" : "border-white/[0.08]"} ${className}`}
+    >
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">{title}</h3>
+      <p className="mt-3 flex-1 text-sm leading-relaxed text-[#94a3b8]">{body}</p>
+      {tags && tags.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className="rounded border border-white/10 bg-black/30 px-2 py-0.5 text-[10px] font-medium text-white/70"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,7 +9,12 @@ const footerLinks = [
   { label: "Terms", href: "#" },
 ] as const;
 
-export function MarketingFooter() {
+export function MarketingFooter({ linkTone = "muted" }: { linkTone?: "muted" | "primary" }) {
+  const linkClass =
+    linkTone === "primary"
+      ? "text-primary/90 transition-colors hover:text-primary"
+      : "text-white/50 transition-colors hover:text-primary";
+
   return (
     <footer className="relative border-t border-white/[0.06] bg-[#040605]/90">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
@@ -23,14 +28,9 @@ export function MarketingFooter() {
             </span>
           </Link>
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/50">
+          <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
             {footerLinks.map(({ label, href }) => (
-              <a
-                key={label}
-                href={href}
-                className="transition-colors hover:text-primary"
-                onClick={(e) => e.preventDefault()}
-              >
+              <a key={label} href={href} className={linkClass} onClick={(e) => e.preventDefault()}>
                 {label}
               </a>
             ))}
