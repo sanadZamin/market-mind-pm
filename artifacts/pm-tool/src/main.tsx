@@ -78,6 +78,18 @@ function showFatalError(message: string) {
   `;
 }
 
+window.addEventListener("error", (event) => {
+  const err = event.error;
+  const message = err instanceof Error ? `${err.message}\n\n${err.stack ?? ""}` : event.message;
+  showFatalError(`Global runtime error:\n${message}`);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason;
+  const message = reason instanceof Error ? `${reason.message}\n\n${reason.stack ?? ""}` : String(reason);
+  showFatalError(`Unhandled promise rejection:\n${message}`);
+});
+
 async function bootstrap() {
   try {
     const mountTimeout = window.setTimeout(() => {

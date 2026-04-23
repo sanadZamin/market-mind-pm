@@ -29,27 +29,33 @@ function RegisterToLoginRedirect() {
 }
 
 function Router() {
+  const [location] = useLocation();
   return (
-    <Switch>
-      <Route path="/" component={TechnologyLanding} />
-      <Route path="/pricing" component={PricingLanding} />
-      <Route path="/resources" component={ResourcesLanding} />
-      <Route path={signInPath} component={Login} />
-      <Route path="/demo" component={FeatureDemo} />
-      <Route path="/register" component={RegisterToLoginRedirect} />
-      
-      <Route path="/dashboard">
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      </Route>
-      <Route path="/projects">
-        <ProtectedRoute><Projects /></ProtectedRoute>
-      </Route>
-      <Route path="/projects/:id">
-        <ProtectedRoute><ProjectDetail /></ProtectedRoute>
-      </Route>
-      
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <div className="fixed bottom-2 right-2 z-[9999] rounded bg-black/80 px-2 py-1 text-[10px] font-mono text-white">
+        route: {location}
+      </div>
+      <Switch>
+        <Route path="/" component={TechnologyLanding} />
+        <Route path="/pricing" component={PricingLanding} />
+        <Route path="/resources" component={ResourcesLanding} />
+        <Route path={signInPath} component={Login} />
+        <Route path="/demo" component={FeatureDemo} />
+        <Route path="/register" component={RegisterToLoginRedirect} />
+
+        <Route path="/dashboard">
+          <ProtectedRoute><Dashboard /></ProtectedRoute>
+        </Route>
+        <Route path="/projects">
+          <ProtectedRoute><Projects /></ProtectedRoute>
+        </Route>
+        <Route path="/projects/:id">
+          <ProtectedRoute><ProjectDetail /></ProtectedRoute>
+        </Route>
+
+        <Route component={NotFound} />
+      </Switch>
+    </>
   );
 }
 
