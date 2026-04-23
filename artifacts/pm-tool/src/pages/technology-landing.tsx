@@ -61,8 +61,10 @@ export default function TechnologyLanding() {
             <span className="font-serif italic font-semibold text-primary">Financial Intelligence</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[#94a3b8] sm:text-lg">
-            Beyond traditional algorithmic trading, Market Mind leverages a multi-layered neural architecture to predict
-            market volatility and execute with microsecond precision.
+            Market Mind is an AI-native quantitative investment platform that spans the full workflow from data-driven
+            strategy generation to execution. Built by the AI4Finance community, it combines machine learning,
+            reinforcement learning, and financial LLMs to deliver real-time market intelligence and institutional-grade
+            tooling.
           </p>
         </section>
 
