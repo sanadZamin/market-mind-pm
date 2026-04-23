@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Mail, Lock } from "lucide-react";
-import logoImg from "../assets/logo.png";
-import glassLogoImg from "../assets/glass-logo-nobg.png";
 import { motion } from "framer-motion";
+const logoImg = "/logo.png";
+const glassLogoImg = "/logo.png";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),

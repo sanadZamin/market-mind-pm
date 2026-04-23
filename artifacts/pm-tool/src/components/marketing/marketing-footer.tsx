@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import logoImg from "../../assets/logo.png";
+const logoImg = "/logo.png";
 
 const footerLinks = [
   { label: "Documentation", href: "#" },

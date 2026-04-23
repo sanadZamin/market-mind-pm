@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, Briefcase, Settings, LogOut } from "lucide-react";
-import logoImg from "../assets/logo.png";
+const logoImg = "/logo.png";
 import {
   Sidebar,
   SidebarContent,

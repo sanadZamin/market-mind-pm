@@ -20,19 +20,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("pm_token");
-    const storedUser = localStorage.getItem("pm_user");
-    
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem("pm_token");
-        localStorage.removeItem("pm_user");
+    try {
+      const storedToken = localStorage.getItem("pm_token");
+      const storedUser = localStorage.getItem("pm_user");
+
+      if (storedToken && storedUser) {
+        try {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        } catch {
+          localStorage.removeItem("pm_token");
+          localStorage.removeItem("pm_user");
+        }
       }
+    } catch {
+      // localStorage may be unavailable in restricted contexts; continue unauthenticated.
+      setToken(null);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const setAuth = (data: AuthResponse) => {
@@ -92,5 +99,11 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     </div>;
   }
 
-  return user ? <>{children}</> : null;
+  return user ? (
+    <>{children}</>
+  ) : (
+    <div className="h-screen w-full flex items-center justify-center bg-background text-muted-foreground">
+      Redirecting to sign in...
+    </div>
+  );
 }

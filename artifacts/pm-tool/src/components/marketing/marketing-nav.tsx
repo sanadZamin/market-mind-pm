@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { getSignInPath } from "@/lib/app-entry";
-import logoImg from "../../assets/logo.png";
+const logoImg = "/logo.png";
 
 const signInPath = getSignInPath();
 

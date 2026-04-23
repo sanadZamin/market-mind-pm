@@ -36,10 +36,25 @@ export default defineConfig(({ mode }) => {
     env.BASE_PATH ??
       (mode === "production" ? "/pm/" : "/"),
   );
+  const backendTargetRaw = env.API_BASE_URL ?? `http://127.0.0.1:${env.API_PORT ?? 8081}`;
+  let backendOrigin = backendTargetRaw;
+  let backendPathPrefix = "";
+  try {
+    const backendUrl = new URL(backendTargetRaw);
+    backendOrigin = `${backendUrl.protocol}//${backendUrl.host}`;
+    backendPathPrefix = backendUrl.pathname.replace(/\/+$/, "");
+    if (backendPathPrefix === "/") backendPathPrefix = "";
+  } catch {
+    // Keep raw target for backwards compatibility when URL parsing fails.
+  }
+  const backendPrefixEndsWithApi = /\/api$/.test(backendPathPrefix);
 
   console.log("[vite] NODE_ENV=", mode);
   console.log("[vite] BASE_PATH(raw)=", env.BASE_PATH);
   console.log("[vite] basePath(normalized)=", basePath);
+  console.log("[vite] backendTarget(raw)=", backendTargetRaw);
+  console.log("[vite] backendOrigin=", backendOrigin);
+  console.log("[vite] backendPathPrefix=", backendPathPrefix || "/");
 
   return {
     base: basePath,
@@ -78,13 +93,29 @@ export default defineConfig(({ mode }) => {
         : {
             proxy: {
               "/api": {
-                target: `http://localhost:${env.API_PORT ?? 8081}`,
+                target: backendOrigin,
                 changeOrigin: true,
+                rewrite: (requestPath) => {
+                  // If backend target already contains /api, avoid generating /api/api/*
+                  const normalizedPath = backendPrefixEndsWithApi
+                    ? requestPath.replace(/^\/api(?=\/|$)/, "")
+                    : requestPath;
+                  return `${backendPathPrefix}${normalizedPath}`;
+                },
               },
               "/pm/api": {
-                target: `http://localhost:${env.API_PORT ?? 8081}`,
+                target: backendOrigin,
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/pm\/api/, "/api"),
+                rewrite: (requestPath) => {
+                  // Convert /pm/api/* (frontend path) to backend path:
+                  // - when backend already ends in /api -> append suffix only
+                  // - otherwise -> ensure /api prefix exists
+                  const suffix = requestPath.replace(/^\/pm\/api(?=\/|$)/, "");
+                  const normalizedPath = backendPrefixEndsWithApi
+                    ? suffix
+                    : `/api${suffix}`;
+                  return `${backendPathPrefix}${normalizedPath}`;
+                },
               },
             },
           }),

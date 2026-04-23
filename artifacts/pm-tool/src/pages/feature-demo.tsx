@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSignInPath } from "@/lib/app-entry";
-import logoImg from "../assets/logo.png";
+const logoImg = "/logo.png";
 
 const SLIDE_MS = 5200;
 
