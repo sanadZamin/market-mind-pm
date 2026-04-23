@@ -60,10 +60,19 @@ function Router() {
 }
 
 function App() {
+  const configuredBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const isInsideBase =
+    !configuredBase ||
+    configuredBase === "/" ||
+    pathname === configuredBase ||
+    pathname.startsWith(`${configuredBase}/`);
+  const routerBase = isInsideBase ? configuredBase : "";
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WouterRouter base={routerBase}>
           <AuthProvider>
             <Router />
           </AuthProvider>
