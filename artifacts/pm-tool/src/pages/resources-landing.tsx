@@ -39,32 +39,32 @@ export default function ResourcesLanding() {
       <main className="relative">
         <section className="mx-auto max-w-4xl px-4 pb-12 pt-12 text-center sm:px-6 sm:pt-16 lg:px-8">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Support ecosystem</p>
-          <h1 className="mt-4 font-display text-4xl font-bold leading-tight text-white sm:text-5xl">
+          <h1 className="mt-4 font-display text-4xl font-bold leading-tight text-foreground sm:text-5xl">
             How can we assist your <span className="text-primary">Intelligence</span>?
           </h1>
           <div className="relative mx-auto mt-10 max-w-2xl">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/35" aria-hidden />
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               type="search"
               placeholder="Search documentation, APIs, or community threads..."
-              className="h-12 rounded-2xl border-white/12 bg-white/[0.05] pl-12 text-white placeholder:text-white/35 focus-visible:border-primary/50 focus-visible:ring-primary/20"
+              className="h-12 rounded-2xl border-border/70 bg-card/70 pl-12 text-foreground placeholder:text-muted-foreground focus-visible:border-primary/50 focus-visible:ring-primary/20"
             />
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <article className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8 lg:col-span-7">
+            <article className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8 lg:col-span-7">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Developer hub</p>
-              <h2 className="mt-2 max-w-md font-display text-2xl font-bold text-white">AI agent framework &amp; API</h2>
-              <p className="mt-4 max-w-md text-sm leading-relaxed text-[#94a3b8]">
+              <h2 className="mt-2 max-w-md font-display text-2xl font-bold text-foreground">AI agent framework &amp; API</h2>
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
                 Complete documentation for deploying autonomous trading agents using the Market Mind protocol. SDKs are
                 available for Python, Rust, and TypeScript.
               </p>
               <Button
                 asChild
                 variant="outline"
-                className="mt-8 h-10 rounded-xl border-white/15 bg-black/30 text-white hover:bg-white/5"
+                className="mt-8 h-10 rounded-xl border-border/70 bg-secondary/50 text-foreground hover:bg-secondary"
               >
                 <a href="#">
                   View docs <span aria-hidden>→</span>
@@ -84,12 +84,12 @@ export default function ResourcesLanding() {
               </div>
             </article>
 
-            <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8 lg:col-span-5">
+            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8 lg:col-span-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
                 <Users className="h-5 w-5 text-primary" />
               </div>
-              <h2 className="mt-4 font-display text-lg font-bold text-white">Community port</h2>
-              <p className="mt-2 text-sm leading-relaxed text-[#94a3b8]">
+              <h2 className="mt-4 font-display text-lg font-bold text-foreground">Community port</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 Join 50,000+ quantitative traders and developers sharing strategies and custom modules.
               </p>
               <a
@@ -102,30 +102,30 @@ export default function ResourcesLanding() {
               </a>
             </article>
 
-            <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8 lg:col-span-5">
+            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8 lg:col-span-5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
                 <Terminal className="h-5 w-5 text-primary" />
               </div>
-              <h2 className="mt-4 font-display text-lg font-bold text-white">Open source</h2>
-              <p className="mt-2 text-sm leading-relaxed text-[#94a3b8]">
+              <h2 className="mt-4 font-display text-lg font-bold text-foreground">Open source</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 Contribute to our core liquidity engine and sentiment analysis libraries on GitHub.
               </p>
-              <div className="mt-6 flex flex-wrap gap-4 border-t border-white/[0.06] pt-5 text-xs text-white/45">
+              <div className="mt-6 flex flex-wrap gap-4 border-t border-border/70 pt-5 text-xs text-muted-foreground">
                 <span>
-                  <span className="font-semibold text-white/70">v2.4.1</span> Stable
+                  <span className="font-semibold text-foreground">v2.4.1</span> Stable
                 </span>
                 <span>
-                  <span className="font-semibold text-white/70">134</span> contributors
+                  <span className="font-semibold text-foreground">134</span> contributors
                 </span>
               </div>
             </article>
 
-            <article className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm sm:p-8 lg:col-span-7">
+            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8 lg:col-span-7">
               <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Contributor spotlight</p>
-                  <h2 className="mt-2 font-display text-xl font-bold text-white">Community strategies</h2>
-                  <p className="mt-4 text-sm leading-relaxed text-[#94a3b8]">
+                  <h2 className="mt-2 font-display text-xl font-bold text-foreground">Community strategies</h2>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                     Browse battle-tested playbooks, notebooks, and deployment recipes contributed by core members and desk
                     partners.
                   </p>
@@ -137,7 +137,7 @@ export default function ResourcesLanding() {
                   {avatars.map((ini) => (
                     <div
                       key={ini}
-                      className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-primary/25 to-white/5 text-xs font-bold text-white"
+                      className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-gradient-to-br from-primary/25 to-secondary/60 text-xs font-bold text-foreground"
                     >
                       {ini}
                     </div>
@@ -152,14 +152,14 @@ export default function ResourcesLanding() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
-          <h2 className="text-center font-display text-2xl font-bold text-white sm:text-3xl">Technical intelligence base</h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-[#94a3b8]">
+          <h2 className="text-center font-display text-2xl font-bold text-foreground sm:text-3xl">Technical intelligence base</h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground">
             Instant answers to the most common technical and trading inquiries.
           </p>
-          <Accordion type="single" collapsible className="mt-10 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-2 sm:px-4">
+          <Accordion type="single" collapsible className="mt-10 rounded-2xl border border-border/70 bg-card/70 px-2 sm:px-4">
             {faqItems.map((item, i) => (
-              <AccordionItem key={item.q} value={`item-${i}`} className="border-white/[0.06] px-3">
-                <AccordionTrigger className="py-5 text-left text-white hover:no-underline [&>svg]:text-primary">
+              <AccordionItem key={item.q} value={`item-${i}`} className="border-border/70 px-3">
+                <AccordionTrigger className="py-5 text-left text-foreground hover:no-underline [&>svg]:text-primary">
                   <span className="flex gap-4">
                     <span className="w-8 shrink-0 font-mono text-sm text-primary/80">
                       {String(i + 1).padStart(2, "0")}
@@ -167,12 +167,12 @@ export default function ResourcesLanding() {
                     <span className="font-medium">{item.q}</span>
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="pb-5 pl-12 text-[#94a3b8]">{item.a}</AccordionContent>
+                <AccordionContent className="pb-5 pl-12 text-muted-foreground">{item.a}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
           <div className="mt-10 flex flex-col items-center gap-4 text-center">
-            <p className="text-sm text-white/50">Didn&apos;t find what you were looking for?</p>
+            <p className="text-sm text-muted-foreground">Didn&apos;t find what you were looking for?</p>
             <Button
               asChild
               variant="outline"
