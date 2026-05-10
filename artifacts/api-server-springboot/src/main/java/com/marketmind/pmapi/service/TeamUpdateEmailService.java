@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
 import jakarta.mail.internet.MimeMessage;
 
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class TeamUpdateEmailService {
@@ -91,13 +94,21 @@ public class TeamUpdateEmailService {
       return;
     }
 
-    List<String> recipientEmails = jdbcTemplate.queryForList(
+    List<String> rawRecipients = jdbcTemplate.queryForList(
         "select email from users where email is not null and email <> ''",
         String.class
     );
-    if (recipientEmails == null || recipientEmails.isEmpty()) {
+    List<String> recipientEmails = dedupeRecipientEmails(rawRecipients);
+    if (recipientEmails.isEmpty()) {
       log.warn("Team email skipped (no recipient emails in users table): subject={}", subject);
       return;
+    }
+    if (emailDebug && rawRecipients != null && rawRecipients.size() != recipientEmails.size()) {
+      log.info(
+          "Team email: deduplicated recipients {} -> {} (duplicate addresses in users.email cause duplicate deliveries)",
+          rawRecipients.size(),
+          recipientEmails.size()
+      );
     }
 
     String detailsHtml = "";
@@ -215,6 +226,23 @@ public class TeamUpdateEmailService {
         );
       }
     }
+  }
+
+  /**
+   * One MIME message can list the same address multiple times; some SMTP providers deliver one copy per
+   * {@code To} entry, so the same inbox gets duplicate emails. Collapse by lower-case address.
+   */
+  private static List<String> dedupeRecipientEmails(List<String> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return List.of();
+    }
+    LinkedHashMap<String, String> byLower = new LinkedHashMap<>();
+    for (String e : raw) {
+      if (e == null || e.isBlank()) continue;
+      String trimmed = e.trim();
+      byLower.putIfAbsent(trimmed.toLowerCase(Locale.ROOT), trimmed);
+    }
+    return new ArrayList<>(byLower.values());
   }
 
   private static String escapeHtml(String value) {

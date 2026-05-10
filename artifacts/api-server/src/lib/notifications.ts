@@ -212,7 +212,15 @@ export async function sendTeamUpdateEmail(input: SendUpdateEmailInput) {
   const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, input.actorUserId));
   const recipients = await db.select({ email: usersTable.email }).from(usersTable);
 
-  const recipientEmails = recipients.map((r) => r.email).filter(Boolean);
+  const rawEmails = recipients.map((r) => r.email).filter(Boolean) as string[];
+  const byLower = new Map<string, string>();
+  for (const e of rawEmails) {
+    const trimmed = e.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!byLower.has(key)) byLower.set(key, trimmed);
+  }
+  const recipientEmails = [...byLower.values()];
   if (recipientEmails.length === 0) {
     if (debug) {
       logger.info(

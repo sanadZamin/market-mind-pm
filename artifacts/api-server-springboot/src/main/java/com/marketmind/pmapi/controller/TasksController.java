@@ -4,7 +4,9 @@ import com.marketmind.pmapi.model.Task;
 import com.marketmind.pmapi.model.TaskDependency;
 import com.marketmind.pmapi.repository.TaskRepository;
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
+import com.marketmind.pmapi.service.TaskChangeDetector;
 import com.marketmind.pmapi.service.TaskEnrichmentService;
+import com.marketmind.pmapi.service.TeamUpdateEmailDedupeService;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ public class TasksController {
   private final TaskRepository taskRepository;
   private final TaskEnrichmentService taskEnrichmentService;
   private final TeamUpdateEmailService teamUpdateEmailService;
+  private final TeamUpdateEmailDedupeService teamUpdateEmailDedupeService;
 
   @org.springframework.beans.factory.annotation.Value("${PM_TOOL_BASE_URL:http://localhost:5173}")
   private String pmToolBaseUrl;
@@ -27,11 +30,13 @@ public class TasksController {
   public TasksController(
       TaskRepository taskRepository,
       TaskEnrichmentService taskEnrichmentService,
-      TeamUpdateEmailService teamUpdateEmailService
+      TeamUpdateEmailService teamUpdateEmailService,
+      TeamUpdateEmailDedupeService teamUpdateEmailDedupeService
   ) {
     this.taskRepository = taskRepository;
     this.taskEnrichmentService = taskEnrichmentService;
     this.teamUpdateEmailService = teamUpdateEmailService;
+    this.teamUpdateEmailDedupeService = teamUpdateEmailDedupeService;
   }
 
   private int requireUserId(HttpServletRequest request) {
@@ -141,7 +146,9 @@ public class TasksController {
     List<Task> enriched = taskEnrichmentService.enrichTasks(List.of(updatedOpt.get()));
 
     Integer userId = (Integer) request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
-    if (userId != null) {
+    if (userId != null
+        && TaskChangeDetector.mergedFieldsChangeTask(existing, fields)
+        && teamUpdateEmailDedupeService.allowSamePayloadWithinWindow(taskId, userId, fields)) {
       teamUpdateEmailService.sendTeamUpdateEmail(
           userId,
           "Task updated: " + enriched.get(0).title,
