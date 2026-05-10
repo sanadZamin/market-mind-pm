@@ -17,6 +17,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
       EMAIL_FROM: ${EMAIL_FROM:-}
@@ -49,6 +50,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
       EMAIL_FROM: ${EMAIL_FROM:-}

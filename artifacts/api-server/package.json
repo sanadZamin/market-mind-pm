@@ -23,6 +23,7 @@
     "nodemailer": "^8.0.4",
     "pino": "^9",
     "pino-http": "^10",
+    "resend": "^6.12.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

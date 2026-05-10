@@ -19,7 +19,7 @@ Market Mind PM is a project management workspace with:
 
 - Frontend: React, Vite, TanStack Query, Tailwind, Framer Motion
 - Backend: Express, Drizzle ORM, PostgreSQL
-- Email: Nodemailer (SMTP)
+- Email: Resend (HTTP API when `RESEND_API_KEY` is set) or Nodemailer (SMTP)
 - Excel: `xlsx` + `multer`
 - Report export: `jsPDF` (with programmatic Gantt rendering)
 
@@ -59,12 +59,20 @@ Required core:
 - `DATABASE_URL`
 
 Email notifications:
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_SECURE` (`true`/`false`)
-- `EMAIL_FROM`
+
+**Spring Boot API** (`artifacts/api-server-springboot`, e.g. Docker `springapi`): uses **JavaMailSender** (SMTP). For [Resend](https://resend.com/docs/send-with-smtp), set relay credentials plus a verified `EMAIL_FROM`:
+
+- `SMTP_HOST=smtp.resend.com`
+- `SMTP_PORT=465` (implicit TLS) or `587` (STARTTLS); align with `SMTP_SECURE`
+- `SMTP_USER=resend`
+- `SMTP_PASS` **or** `RESEND_API_KEY` — same secret (`spring.mail.password` falls back to `RESEND_API_KEY` when `SMTP_PASS` is unset)
+- `SMTP_SECURE` (`true` for port 465 is typical)
+- `EMAIL_FROM` — must use an address on a domain [verified in Resend](https://resend.com/docs)
+- `EMAIL_ENABLED`, `EMAIL_DEBUG`, `PM_TOOL_BASE_URL`, `EMAIL_LOGO_*` — same as below where applicable
+
+**Express API** (`artifacts/api-server`): optional **Resend HTTP SDK** — set `RESEND_API_KEY` + `EMAIL_FROM` (skips SMTP when configured). Otherwise use SMTP via Nodemailer:
+
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM`
 - `EMAIL_DEBUG` (`true`/`false`, optional)
 - `PM_TOOL_BASE_URL` (e.g. `https://market-mind.com/pm`)
 - `EMAIL_LOGO_PATH` (optional local path)

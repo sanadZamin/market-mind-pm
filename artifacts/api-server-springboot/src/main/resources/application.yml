@@ -36,16 +36,18 @@ spring:
   datasource:
     url: jdbc:postgresql://${PGHOST:149.102.140.178}:${PGPORT:5432}/${PGDATABASE:marketmind}
     username: ${PGUSER:postgres}
-    password: ${PGPASSWORD:}
+    password: ${PGPASSWORD:Jw8S0F4gbxi0zqm7}
     driver-class-name: org.postgresql.Driver
 
   # Optional: leave host empty locally. JavaMailSender is only created when host is non-blank
   # (see OptionalMailSenderConfiguration). Avoids MailSenderAutoConfiguration failing on missing env.
+  # Resend (SMTP relay): SMTP_HOST=smtp.resend.com, SMTP_PORT=465 (or 587), SMTP_USER=resend,
+  # password = API key — set SMTP_PASS or RESEND_API_KEY (same value; latter avoids duplicating the secret).
   mail:
-    host: ${SMTP_HOST:}
+    host: ${SMTP_HOST:smtp.resend.com}
     port: ${SMTP_PORT:587}
-    username: ${SMTP_USER:}
-    password: ${SMTP_PASS:}
+    username: ${SMTP_USER:sanad@market-mind.com}
+    password: ${SMTP_PASS:re_6UHbTwnU_raRbx542Yvuk46LNa3jw7t9m}
 
 # Ollama
 ollama:

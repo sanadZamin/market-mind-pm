@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import type Mail from "nodemailer/lib/mailer";
+import { Resend, type Attachment as ResendAttachment } from "resend";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
@@ -15,6 +17,29 @@ type SendUpdateEmailInput = {
 
 let transporter: nodemailer.Transporter | null = null;
 let transportVerified = false;
+let resendClient: Resend | null = null;
+
+function getResendClient() {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) return null;
+  if (!resendClient) resendClient = new Resend(key);
+  return resendClient;
+}
+
+/** Resend REST API: set `RESEND_API_KEY` and a verified-domain `EMAIL_FROM` (see https://resend.com/docs). */
+function isResendConfigured() {
+  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim());
+}
+
+function isSmtpConfigured() {
+  return Boolean(
+    process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS &&
+      process.env.EMAIL_FROM,
+  );
+}
 
 function isEmailDebugEnabled() {
   return process.env.EMAIL_DEBUG === "true";
@@ -28,23 +53,18 @@ function isEmailSendingEnabled() {
 }
 
 function isEmailConfigured() {
-  const configured = Boolean(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_PORT &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS &&
-    process.env.EMAIL_FROM,
-  );
+  const configured = isResendConfigured() || isSmtpConfigured();
   if (isEmailDebugEnabled() && !configured) {
     logger.info(
       {
+        resendApiKeySet: Boolean(process.env.RESEND_API_KEY?.trim()),
         smtpHostSet: Boolean(process.env.SMTP_HOST),
         smtpPortSet: Boolean(process.env.SMTP_PORT),
         smtpUserSet: Boolean(process.env.SMTP_USER),
         smtpPassSet: Boolean(process.env.SMTP_PASS),
         emailFromSet: Boolean(process.env.EMAIL_FROM),
       },
-      "Email disabled: missing SMTP configuration",
+      "Email disabled: set RESEND_API_KEY + EMAIL_FROM, or full SMTP_* + EMAIL_FROM",
     );
   }
   return configured;
@@ -205,7 +225,7 @@ export async function sendTeamUpdateEmail(input: SendUpdateEmailInput) {
 
   const actorName = actor?.name ?? `User #${input.actorUserId}`;
   const detailLines = (input.details ?? []).filter(Boolean);
-  const attachments: nodemailer.Attachment[] = [];
+  const attachments: Mail.Attachment[] = [];
   let logoSrc: string | undefined;
 
   // Prefer embedded local logo so email clients do not need public URL access.
@@ -242,6 +262,55 @@ export async function sendTeamUpdateEmail(input: SendUpdateEmailInput) {
   });
 
   try {
+    if (isResendConfigured()) {
+      const resend = getResendClient();
+      if (!resend) return;
+
+      const resendAttachments: ResendAttachment[] = [];
+      for (const a of attachments) {
+        const buf = a.content;
+        const body = Buffer.isBuffer(buf)
+          ? buf
+          : typeof buf === "string"
+            ? Buffer.from(buf, "utf8")
+            : null;
+        if (!body?.length) continue;
+        const entry: ResendAttachment = {
+          filename: (typeof a.filename === "string" ? a.filename : undefined) || "attachment",
+          content: body,
+        };
+        if (typeof a.cid === "string") entry.contentId = a.cid;
+        resendAttachments.push(entry);
+      }
+
+      const { error } = await resend.emails.send({
+        from: process.env.EMAIL_FROM!,
+        to: recipientEmails,
+        subject: input.subject,
+        text,
+        html,
+        ...(resendAttachments.length > 0 ? { attachments: resendAttachments } : {}),
+      });
+
+      if (error) {
+        logger.warn({ error }, "Failed to send team update email (Resend)");
+        return;
+      }
+
+      if (debug) {
+        logger.info(
+          {
+            provider: "resend",
+            recipientCount: recipientEmails.length,
+            recipients: recipientEmails,
+            subject: input.subject,
+          },
+          "Email debug: email sent",
+        );
+      }
+      return;
+    }
+
     const activeTransporter = getTransporter();
 
     if (!transportVerified) {
@@ -277,6 +346,7 @@ export async function sendTeamUpdateEmail(input: SendUpdateEmailInput) {
     if (debug) {
       logger.info(
         {
+          provider: "smtp",
           recipientCount: recipientEmails.length,
           recipients: recipientEmails,
           subject: input.subject,
