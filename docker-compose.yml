@@ -20,7 +20,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-      EMAIL_FROM: ${EMAIL_FROM:-}
+      # Omit EMAIL_FROM here: Compose substitution would set EMAIL_FROM="" when unset and breaks From (Illegal address).
+      # Set EMAIL_FROM in compose.override.yml, env_file, or `environment:` with a real verified sender when deploying.
       EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
       EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
       PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-http://localhost:5173}
@@ -53,7 +54,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-      EMAIL_FROM: ${EMAIL_FROM:-}
+      # Omit EMAIL_FROM here: Compose substitution would set EMAIL_FROM="" when unset and breaks From (Illegal address).
+      # Set EMAIL_FROM in compose.override.yml, env_file, or `environment:` with a real verified sender when deploying.
       EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
       EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
       PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-http://localhost:5173}

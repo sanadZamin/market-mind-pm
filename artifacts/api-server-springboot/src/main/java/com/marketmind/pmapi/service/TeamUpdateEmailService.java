@@ -67,6 +67,17 @@ public class TeamUpdateEmailService {
       return;
     }
 
+    String fromAddress = emailFrom == null ? "" : emailFrom.trim();
+    if (fromAddress.isEmpty()) {
+      log.warn(
+          "Team email skipped (EMAIL_FROM is blank): subject={}. "
+              + "Set EMAIL_FROM to a valid RFC 5322 address on your verified sending domain (e.g. Resend). "
+              + "If you use Docker Compose, remove an empty EMAIL_FROM from the environment or set it in .env.",
+          subject
+      );
+      return;
+    }
+
     final String actorName;
     try {
       actorName = jdbcTemplate.queryForObject(
@@ -163,7 +174,7 @@ public class TeamUpdateEmailService {
         log.info(
             "Team email attempt: subject={} from={} recipientCount={} recipients={}",
             subject,
-            emailFrom,
+            fromAddress,
             recipientEmails.size(),
             recipientEmails
         );
@@ -171,14 +182,14 @@ public class TeamUpdateEmailService {
         log.info(
             "Team email attempt: subject={} from={} recipientCount={}",
             subject,
-            emailFrom,
+            fromAddress,
             recipientEmails.size()
         );
       }
 
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, hasCidLogo, "UTF-8");
-      helper.setFrom(emailFrom);
+      helper.setFrom(fromAddress);
       for (String to : recipientEmails) helper.addTo(to);
       helper.setSubject(subject);
       if (hasCidLogo) {
@@ -191,7 +202,7 @@ public class TeamUpdateEmailService {
       log.error(
           "Team email failed: subject={} from={} recipientCount={}",
           subject,
-          emailFrom,
+          fromAddress,
           recipientEmails.size(),
           e
       );
