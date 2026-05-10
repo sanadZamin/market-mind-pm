@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -206,6 +207,13 @@ public class TeamUpdateEmailService {
           recipientEmails.size(),
           e
       );
+      if (e instanceof MailAuthenticationException) {
+        log.warn(
+            "SMTP authentication failed. For Resend SMTP the username must be exactly \"resend\" (not your email); "
+                + "password is your API key (SMTP_PASS or RESEND_API_KEY). "
+                + "See https://resend.com/docs/send-with-smtp"
+        );
+      }
     }
   }
 

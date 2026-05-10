@@ -15,7 +15,8 @@ services:
       PGPASSWORD: Jw8S0F4gbxi0zqm7
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER}
+      # Resend requires username exactly "resend"; override if you use a different SMTP provider.
+      SMTP_USER: ${SMTP_USER:-resend}
       SMTP_PASS: ${SMTP_PASS}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
@@ -49,7 +50,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER}
+      # Resend requires username exactly "resend"; override if you use a different SMTP provider.
+      SMTP_USER: ${SMTP_USER:-resend}
       SMTP_PASS: ${SMTP_PASS}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
