@@ -1,20 +1,24 @@
 package com.marketmind.pmapi.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.springframework.jdbc.core.JdbcTemplate;
 import jakarta.mail.internet.MimeMessage;
 
 import java.nio.file.Files;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class TeamUpdateEmailService {
+  private static final Logger log = LoggerFactory.getLogger(TeamUpdateEmailService.class);
+
   private final ObjectProvider<JavaMailSender> mailSenderProvider;
   private final JdbcTemplate jdbcTemplate;
 
@@ -50,31 +54,39 @@ public class TeamUpdateEmailService {
       String actionLabel
   ) {
     if (!emailEnabled) {
-      if (emailDebug) {
-        System.out.println("[email] skipped (EMAIL_ENABLED=false): " + subject);
-      }
+      log.debug("Team email skipped (email.enabled=false): subject={}", subject);
       return;
     }
 
     JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
     if (mailSender == null) {
-      if (emailDebug) {
-        System.out.println("[email] skipped (no SMTP host / JavaMailSender bean): " + subject);
-      }
+      log.warn(
+          "Team email skipped (no JavaMailSender): subject={}. Set SMTP_HOST (e.g. smtp.resend.com) and mail credentials.",
+          subject
+      );
       return;
     }
 
-    String actorName = jdbcTemplate.queryForObject(
-        "select name from users where id = ?",
-        String.class,
-        actorUserId
-    );
+    final String actorName;
+    try {
+      actorName = jdbcTemplate.queryForObject(
+          "select name from users where id = ?",
+          String.class,
+          actorUserId
+      );
+    } catch (EmptyResultDataAccessException ex) {
+      log.warn("Team email skipped (actor user not found): actorUserId={} subject={}", actorUserId, subject);
+      return;
+    }
 
     List<String> recipientEmails = jdbcTemplate.queryForList(
         "select email from users where email is not null and email <> ''",
         String.class
     );
-    if (recipientEmails == null || recipientEmails.isEmpty()) return;
+    if (recipientEmails == null || recipientEmails.isEmpty()) {
+      log.warn("Team email skipped (no recipient emails in users table): subject={}", subject);
+      return;
+    }
 
     String detailsHtml = "";
     if (details != null && !details.isEmpty()) {
@@ -147,6 +159,23 @@ public class TeamUpdateEmailService {
     );
 
     try {
+      if (emailDebug) {
+        log.info(
+            "Team email attempt: subject={} from={} recipientCount={} recipients={}",
+            subject,
+            emailFrom,
+            recipientEmails.size(),
+            recipientEmails
+        );
+      } else {
+        log.info(
+            "Team email attempt: subject={} from={} recipientCount={}",
+            subject,
+            emailFrom,
+            recipientEmails.size()
+        );
+      }
+
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, hasCidLogo, "UTF-8");
       helper.setFrom(emailFrom);
@@ -157,13 +186,15 @@ public class TeamUpdateEmailService {
       }
       helper.setText(html, true);
       mailSender.send(message);
-      if (emailDebug) {
-        System.out.println("[email] sent: " + subject + " to " + recipientEmails.size() + " recipients");
-      }
+      log.info("Team email sent: subject={} recipientCount={}", subject, recipientEmails.size());
     } catch (Exception e) {
-      if (emailDebug) {
-        System.out.println("[email] failed: " + e.getMessage());
-      }
+      log.error(
+          "Team email failed: subject={} from={} recipientCount={}",
+          subject,
+          emailFrom,
+          recipientEmails.size(),
+          e
+      );
     }
   }
 
