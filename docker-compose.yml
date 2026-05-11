@@ -24,7 +24,8 @@ services:
       # Omit EMAIL_FROM here: Compose substitution would set EMAIL_FROM="" when unset and breaks From (Illegal address).
       # Set EMAIL_FROM in compose.override.yml, env_file, or `environment:` with a real verified sender when deploying.
       EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
-      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
+      # Default matches Dockerfile.springboot.api baked-in logo; set EMAIL_LOGO_PATH="" only if you intentionally disable it.
+      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-/app/assets/logo.png}
       # Email action links: set PM_TOOL_BASE_URL or PUBLIC_APP_URL in compose.override.yml / env (see README).
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
@@ -59,7 +60,8 @@ services:
       # Omit EMAIL_FROM here: Compose substitution would set EMAIL_FROM="" when unset and breaks From (Illegal address).
       # Set EMAIL_FROM in compose.override.yml, env_file, or `environment:` with a real verified sender when deploying.
       EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
-      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
+      # Default matches Dockerfile.springboot.api baked-in logo; set EMAIL_LOGO_PATH="" only if you intentionally disable it.
+      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-/app/assets/logo.png}
       # Email action links: set PM_TOOL_BASE_URL or PUBLIC_APP_URL in compose.override.yml / env (see README).
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
