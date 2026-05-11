@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
+import { consumeReturnToWouterPath } from "@/lib/auth-return";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,8 @@ export default function Login() {
       const res = await loginMutation.mutateAsync({ data });
       setAuth(res);
       toast({ title: "Welcome back!" });
-      setLocation("/dashboard");
+      const returnTo = consumeReturnToWouterPath();
+      setLocation(returnTo ?? "/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",

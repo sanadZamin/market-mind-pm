@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { User, AuthResponse } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { getSignInPath } from "@/lib/app-entry";
+import { storeAuthRedirectIntent } from "@/lib/auth-return";
 
 interface AuthContextType {
   user: User | null;
@@ -54,6 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     localStorage.removeItem("pm_token");
     localStorage.removeItem("pm_user");
+    try {
+      storeAuthRedirectIntent();
+    } catch {
+      /* ignore */
+    }
     setLocation(getSignInPath());
   };
 
@@ -89,6 +95,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !user) {
+      storeAuthRedirectIntent();
       setLocation(getSignInPath());
     }
   }, [user, isLoading, setLocation]);
