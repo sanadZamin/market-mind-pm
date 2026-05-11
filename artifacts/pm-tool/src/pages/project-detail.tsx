@@ -26,6 +26,10 @@ import {
   removeTaskDependency,
   deleteTask,
   listSubtasks,
+  getGetTaskQueryKey,
+  getListCommentsQueryKey,
+  getListSubtasksQueryKey,
+  getListTaskDependenciesQueryKey,
   Task,
   User,
   TaskStatus,
@@ -1896,10 +1900,24 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
 
 // ─── TASK DETAIL SHEET ─────────────────────────────────────────────────────────
 function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { taskId: number | null; onClose: () => void; users: User[]; projectId: number; allTasks: Task[] }) {
-  const { data: task }         = useGetTask(taskId!, { request: getAuthRequest(), query: { enabled: !!taskId } });
-  const { data: comments }     = useListComments(taskId!, { request: getAuthRequest(), query: { enabled: !!taskId } });
-  const { data: subtasks, refetch: refetchSubtasks }     = useListSubtasks(taskId!, { request: getAuthRequest(), query: { enabled: !!taskId } });
-  const { data: dependencies, refetch: refetchDeps }    = useListTaskDependencies(taskId!, { request: getAuthRequest(), query: { enabled: !!taskId } });
+  const sheetTaskId = taskId ?? 0;
+  const sheetQueryBase = { enabled: !!taskId } as const;
+  const { data: task } = useGetTask(sheetTaskId, {
+    request: getAuthRequest(),
+    query: { ...sheetQueryBase, queryKey: getGetTaskQueryKey(sheetTaskId) },
+  });
+  const { data: comments } = useListComments(sheetTaskId, {
+    request: getAuthRequest(),
+    query: { ...sheetQueryBase, queryKey: getListCommentsQueryKey(sheetTaskId) },
+  });
+  const { data: subtasks, refetch: refetchSubtasks } = useListSubtasks(sheetTaskId, {
+    request: getAuthRequest(),
+    query: { ...sheetQueryBase, queryKey: getListSubtasksQueryKey(sheetTaskId) },
+  });
+  const { data: dependencies, refetch: refetchDeps } = useListTaskDependencies(sheetTaskId, {
+    request: getAuthRequest(),
+    query: { ...sheetQueryBase, queryKey: getListTaskDependenciesQueryKey(sheetTaskId) },
+  });
 
   const commentMutation   = useCreateComment();
   const updateMutation    = useUpdateTask();

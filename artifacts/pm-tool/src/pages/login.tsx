@@ -138,7 +138,7 @@ export default function Login() {
               <div className="space-y-2">
                 {/* Grid keeps the same visual layout, but the DOM order is Label -> Password input -> Forgot link.
                     That ensures keyboard `Tab` moves from email to password first. */}
-                <div className="grid grid-cols-[1fr_auto] items-center gap-x-2">
+                <div className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2.5">
                   <Label
                     htmlFor="password"
                     className="text-white/80 font-medium"

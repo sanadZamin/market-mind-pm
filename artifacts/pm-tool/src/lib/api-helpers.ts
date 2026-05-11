@@ -1,13 +1,15 @@
 /**
  * Helper to inject the Bearer token into generated orval hooks.
+ * Typed as Record<string, string> so unions like `{ Authorization?: undefined }` are not inferred
+ * (those break RequestInit / CustomFetchOptions).
  */
-export const getAuthHeaders = () => {
-  const token = localStorage.getItem('pm_token');
+export const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem("pm_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const getAuthRequest = () => ({
-  headers: getAuthHeaders()
+export const getAuthRequest = (): { headers: Record<string, string> } => ({
+  headers: getAuthHeaders(),
 });
 
 /** Same base as `setBaseUrl` + `/api` — use for raw `fetch` calls. */

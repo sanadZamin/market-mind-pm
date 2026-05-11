@@ -36,7 +36,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${PGHOST:149.102.140.178}:${PGPORT:5432}/${PGDATABASE:marketmind}
     username: ${PGUSER:postgres}
-    password: ${PGPASSWORD:}
+    password: ${PGPASSWORD:Jw8S0F4gbxi0zqm7}
     driver-class-name: org.postgresql.Driver
 
   # Optional: leave host empty locally. JavaMailSender is only created when host is non-blank
