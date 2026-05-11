@@ -117,13 +117,17 @@ export default function ProjectDetail() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const ganttExportRef = useRef<HTMLDivElement | null>(null);
 
+  // Email / shared links: …/projects/{projectId}?taskId={id} opens this sheet after load (and when switching projects).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const taskIdParam = new URLSearchParams(window.location.search).get("taskId");
-    if (!taskIdParam) return;
+    if (!taskIdParam) {
+      setSelectedTaskId(null);
+      return;
+    }
     const taskId = Number(taskIdParam);
     if (!Number.isNaN(taskId)) setSelectedTaskId(taskId);
-  }, []);
+  }, [projectId]);
 
   const projectForm = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
@@ -647,7 +651,23 @@ export default function ProjectDetail() {
 
       <CreateTaskDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} projectId={projectId} users={users || []} />
       <ExcelImportDialog open={isImportOpen} onOpenChange={setIsImportOpen} projectId={projectId} />
-      <TaskDetailSheet  taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} users={users || []} projectId={projectId} allTasks={tasks} />
+      <TaskDetailSheet
+        taskId={selectedTaskId}
+        onClose={() => {
+          setSelectedTaskId(null);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has("taskId")) {
+              url.searchParams.delete("taskId");
+              const q = url.searchParams.toString();
+              window.history.replaceState({}, "", url.pathname + (q ? `?${q}` : "") + url.hash);
+            }
+          }
+        }}
+        users={users || []}
+        projectId={projectId}
+        allTasks={tasks}
+      />
 
       <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
         <DialogContent className="sm:max-w-[520px] bg-card border-border rounded-2xl">

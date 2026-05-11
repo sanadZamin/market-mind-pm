@@ -290,6 +290,7 @@ router.post("/tasks/:taskId/dependencies", async (req: AuthenticatedRequest, res
 
   const [dep] = await db.insert(taskDependenciesTable).values({ taskId, dependsOnTaskId }).returning();
   const [blocker] = await db.select().from(tasksTable).where(eq(tasksTable.id, dependsOnTaskId));
+  const [taskForLink] = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId));
   res.status(201).json({
     ...dep,
     dependsOnTask: blocker ? { id: blocker.id, title: blocker.title, status: blocker.status } : null,
@@ -300,7 +301,7 @@ router.post("/tasks/:taskId/dependencies", async (req: AuthenticatedRequest, res
     subject: `Dependency added to task #${taskId}`,
     intro: `A task dependency was added.`,
     details: [`Task ID: ${taskId}`, `Blocked by task ID: ${dependsOnTaskId}`],
-    actionUrl: blocker ? getTaskLink(blocker.projectId, taskId) : `${resolvePmToolBaseUrl()}/projects`,
+    actionUrl: taskForLink ? getTaskLink(taskForLink.projectId, taskId) : `${resolvePmToolBaseUrl()}/projects`,
     actionLabel: "Open task",
   });
 });

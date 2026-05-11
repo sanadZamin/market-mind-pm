@@ -41,6 +41,14 @@ public class TasksController {
     this.pmToolProperties = pmToolProperties;
   }
 
+  /** SPA opens the task sheet when the URL contains {@code ?taskId=}. */
+  private String taskDeepLinkOrProjects(int taskId) {
+    return taskRepository
+        .getTask(taskId)
+        .map(t -> pmToolProperties.getBaseUrl() + "/projects/" + t.projectId + "?taskId=" + taskId)
+        .orElse(pmToolProperties.getBaseUrl() + "/projects");
+  }
+
   private int requireUserId(HttpServletRequest request) {
     Object userIdObj = request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
     if (!(userIdObj instanceof Integer)) {
@@ -252,7 +260,7 @@ public class TasksController {
           "Dependency added to task #" + taskId,
           "A task dependency was added.",
           List.of("Task ID: " + taskId, "Blocked by task ID: " + dependsOnTaskId),
-          pmToolProperties.getBaseUrl() + "/projects",
+          taskDeepLinkOrProjects(taskId),
           "Open task"
       );
     }
@@ -274,8 +282,8 @@ public class TasksController {
           "Dependency removed from task #" + taskId,
           "A task dependency was removed.",
           List.of("Task ID: " + taskId, "Removed blocker task ID: " + dependsOnId),
-          pmToolProperties.getBaseUrl() + "/projects",
-          "Open project"
+          taskDeepLinkOrProjects(taskId),
+          "Open task"
       );
     }
     return ResponseEntity.ok(Map.of("success", true, "message", "Dependency removed"));

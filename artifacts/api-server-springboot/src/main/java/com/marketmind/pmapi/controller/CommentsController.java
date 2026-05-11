@@ -2,6 +2,7 @@ package com.marketmind.pmapi.controller;
 
 import com.marketmind.pmapi.model.Comment;
 import com.marketmind.pmapi.repository.CommentRepository;
+import com.marketmind.pmapi.repository.TaskRepository;
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
 import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
@@ -17,17 +18,27 @@ import java.util.Optional;
 @RestController
 public class CommentsController {
   private final CommentRepository commentRepository;
+  private final TaskRepository taskRepository;
   private final TeamUpdateEmailService teamUpdateEmailService;
   private final PmToolProperties pmToolProperties;
 
   public CommentsController(
       CommentRepository commentRepository,
+      TaskRepository taskRepository,
       TeamUpdateEmailService teamUpdateEmailService,
       PmToolProperties pmToolProperties
   ) {
     this.commentRepository = commentRepository;
+    this.taskRepository = taskRepository;
     this.teamUpdateEmailService = teamUpdateEmailService;
     this.pmToolProperties = pmToolProperties;
+  }
+
+  private String taskDeepLinkOrProjects(int taskId) {
+    return taskRepository
+        .getTask(taskId)
+        .map(t -> pmToolProperties.getBaseUrl() + "/projects/" + t.projectId + "?taskId=" + taskId)
+        .orElse(pmToolProperties.getBaseUrl() + "/projects");
   }
 
   private int requireUserId(HttpServletRequest request) {
@@ -66,8 +77,8 @@ public class CommentsController {
         "New comment on task #" + taskId,
         "A comment was added to a task.",
         List.of("Task ID: " + taskId),
-        pmToolProperties.getBaseUrl() + "/projects",
-        "Open project"
+        taskDeepLinkOrProjects(taskId),
+        "Open task"
     );
 
     return ResponseEntity.status(HttpStatus.CREATED).body(created.get());
