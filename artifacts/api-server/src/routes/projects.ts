@@ -4,10 +4,10 @@ import { eq, and, count } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { CreateProjectBody, UpdateProjectBody } from "@workspace/api-zod";
 import { sendTeamUpdateEmail } from "../lib/notifications.js";
+import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
 import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
-const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://149.102.140.178:7869";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3.5:0.8b";
 /** Qwen3-style models: thinking mode adds latency; `/api/chat` + `think: false` follows Ollama docs. */
@@ -153,7 +153,7 @@ router.post("/", async (req: AuthenticatedRequest, res) => {
     subject: `Project created: ${project.name}`,
     intro: `A new project was created.`,
     details: [`Project: ${project.name}`, `Status: ${project.status}`],
-    actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
+    actionUrl: `${resolvePmToolBaseUrl()}/projects/${project.id}`,
     actionLabel: "Open project",
   });
 });
@@ -273,7 +273,7 @@ router.put("/:projectId", async (req: AuthenticatedRequest, res) => {
     subject: `Project updated: ${project.name}`,
     intro: `A project was updated.`,
     details: [`Project: ${project.name}`, `Status: ${project.status}`],
-    actionUrl: `${PM_TOOL_BASE_URL}/projects/${project.id}`,
+    actionUrl: `${resolvePmToolBaseUrl()}/projects/${project.id}`,
     actionLabel: "Open project",
   });
 });
@@ -289,7 +289,7 @@ router.delete("/:projectId", async (req: AuthenticatedRequest, res) => {
       subject: `Project deleted: ${project.name}`,
       intro: `A project was deleted.`,
       details: [`Project: ${project.name}`],
-      actionUrl: `${PM_TOOL_BASE_URL}/projects`,
+      actionUrl: `${resolvePmToolBaseUrl()}/projects`,
       actionLabel: "View projects",
     });
   }

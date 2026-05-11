@@ -68,13 +68,13 @@ Email notifications:
 - `SMTP_PASS` **or** `RESEND_API_KEY` — same secret (`spring.mail.password` falls back to `RESEND_API_KEY` when `SMTP_PASS` is unset)
 - `SMTP_SECURE` (`true` for port 465 is typical)
 - `EMAIL_FROM` — must use an address on a domain [verified in Resend](https://resend.com/docs)
-- `EMAIL_ENABLED`, `EMAIL_DEBUG`, `PM_TOOL_BASE_URL`, `EMAIL_LOGO_*` — same as below where applicable
+- `EMAIL_ENABLED`, `EMAIL_DEBUG`, `PM_TOOL_BASE_URL` (or `PUBLIC_APP_URL` / `FRONTEND_URL`), `EMAIL_LOGO_*` — same as below where applicable
 
 **Express API** (`artifacts/api-server`): optional **Resend HTTP SDK** — set `RESEND_API_KEY` + `EMAIL_FROM` (skips SMTP when configured). Otherwise use SMTP via Nodemailer:
 
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `EMAIL_FROM`
 - `EMAIL_DEBUG` (`true`/`false`, optional)
-- `PM_TOOL_BASE_URL` (e.g. `https://market-mind.com/pm`)
+- `PM_TOOL_BASE_URL` — public SPA base for email links (e.g. `https://market-mind.com/pm`). Same resolution: `PUBLIC_APP_URL` or `FRONTEND_URL` if `PM_TOOL_BASE_URL` is unset (Express and Spring).
 - `EMAIL_LOGO_PATH` (optional local path)
 - `EMAIL_LOGO_URL` (optional fallback URL)
 
@@ -114,5 +114,5 @@ pnpm build
 - Ensure reverse proxy routes:
   - `/pm/` -> frontend
   - `/pm/api/` -> API
-- Set `PM_TOOL_BASE_URL` to the public frontend base (e.g. `https://market-mind.com/pm`) so email action links are correct.
+- Set `PM_TOOL_BASE_URL` (or `PUBLIC_APP_URL`) to the public frontend base (e.g. `https://market-mind.com/pm`) so email action links are not `localhost`. With Docker Compose, add these in `docker-compose.override.yml` or your deployment env; the default compose file no longer forces a localhost URL into the API container.
 

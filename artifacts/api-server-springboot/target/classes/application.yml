@@ -58,8 +58,9 @@ ollama:
 email:
   enabled: ${EMAIL_ENABLED:true}
 
-# Idempotent default login for empty DB (disable in production: PM_SEED_DEFAULT_USER=false)
+# Notification email links: set PM_TOOL_BASE_URL, or PUBLIC_APP_URL / FRONTEND_URL (see PmToolProperties).
 pm:
+  # Idempotent default login for empty DB (disable in production: PM_SEED_DEFAULT_USER=false)
   seed:
     default-user:
       enabled: ${PM_SEED_DEFAULT_USER:true}

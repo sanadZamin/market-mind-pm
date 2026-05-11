@@ -5,9 +5,9 @@ import { db, tasksTable, usersTable } from "@workspace/db";
 import { eq, or, ilike, inArray, isNull, and } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { sendTeamUpdateEmail } from "../lib/notifications.js";
+import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
 
 const router: IRouter = Router({ mergeParams: true });
-const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://149.102.140.178:7869";
@@ -573,7 +573,7 @@ router.post("/projects/:projectId/tasks/bulk", async (req: AuthenticatedRequest,
     subject: `Bulk task import completed`,
     intro: `Tasks were imported from Excel.`,
     details: [`Project ID: ${projectId}`, `Created tasks: ${createdTotal}`],
-    actionUrl: `${PM_TOOL_BASE_URL}/projects/${projectId}`,
+    actionUrl: `${resolvePmToolBaseUrl()}/projects/${projectId}`,
     actionLabel: "Open project",
   });
 });

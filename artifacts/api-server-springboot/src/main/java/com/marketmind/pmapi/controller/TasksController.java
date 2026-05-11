@@ -4,8 +4,10 @@ import com.marketmind.pmapi.model.Task;
 import com.marketmind.pmapi.model.TaskDependency;
 import com.marketmind.pmapi.repository.TaskRepository;
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
+import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.TaskChangeDetector;
 import com.marketmind.pmapi.service.TaskEnrichmentService;
+import com.marketmind.pmapi.service.TaskUpdateChangeDescription;
 import com.marketmind.pmapi.service.TeamUpdateEmailDedupeService;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,20 +25,20 @@ public class TasksController {
   private final TaskEnrichmentService taskEnrichmentService;
   private final TeamUpdateEmailService teamUpdateEmailService;
   private final TeamUpdateEmailDedupeService teamUpdateEmailDedupeService;
-
-  @org.springframework.beans.factory.annotation.Value("${PM_TOOL_BASE_URL:http://localhost:5173}")
-  private String pmToolBaseUrl;
+  private final PmToolProperties pmToolProperties;
 
   public TasksController(
       TaskRepository taskRepository,
       TaskEnrichmentService taskEnrichmentService,
       TeamUpdateEmailService teamUpdateEmailService,
-      TeamUpdateEmailDedupeService teamUpdateEmailDedupeService
+      TeamUpdateEmailDedupeService teamUpdateEmailDedupeService,
+      PmToolProperties pmToolProperties
   ) {
     this.taskRepository = taskRepository;
     this.taskEnrichmentService = taskEnrichmentService;
     this.teamUpdateEmailService = teamUpdateEmailService;
     this.teamUpdateEmailDedupeService = teamUpdateEmailDedupeService;
+    this.pmToolProperties = pmToolProperties;
   }
 
   private int requireUserId(HttpServletRequest request) {
@@ -98,7 +100,7 @@ public class TasksController {
         "Task created: " + enriched.get(0).title,
         "A task was created.",
         List.of("Task: " + enriched.get(0).title, "Project ID: " + projectId),
-        pmToolBaseUrl + "/projects/" + projectId + "?taskId=" + enriched.get(0).id,
+        pmToolProperties.getBaseUrl() + "/projects/" + projectId + "?taskId=" + enriched.get(0).id,
         "Open task"
     );
 
@@ -149,12 +151,15 @@ public class TasksController {
     if (userId != null
         && TaskChangeDetector.mergedFieldsChangeTask(existing, fields)
         && teamUpdateEmailDedupeService.allowSamePayloadWithinWindow(taskId, userId, fields)) {
+      List<Task> enrichedBefore = taskEnrichmentService.enrichTasks(List.of(existing));
+      List<String> detailLines =
+          TaskUpdateChangeDescription.describeChanges(enrichedBefore.get(0), enriched.get(0));
       teamUpdateEmailService.sendTeamUpdateEmail(
           userId,
           "Task updated: " + enriched.get(0).title,
           "A task was updated.",
-          List.of("Task: " + enriched.get(0).title, "Status: " + enriched.get(0).status),
-          pmToolBaseUrl + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
+          detailLines,
+          pmToolProperties.getBaseUrl() + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
           "Open task"
       );
     }
@@ -175,7 +180,7 @@ public class TasksController {
             "Task deleted: " + t.title,
             "A task was deleted.",
             List.of("Task ID: " + taskId, "Project ID: " + t.projectId),
-            pmToolBaseUrl + "/projects/" + t.projectId,
+            pmToolProperties.getBaseUrl() + "/projects/" + t.projectId,
             "Open project"
         );
       }
@@ -211,7 +216,7 @@ public class TasksController {
         "Subtask created: " + enriched.get(0).title,
         "A subtask was created.",
         List.of("Subtask: " + enriched.get(0).title, "Parent task ID: " + taskId),
-        pmToolBaseUrl + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
+        pmToolProperties.getBaseUrl() + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
         "Open subtask"
     );
 
@@ -247,7 +252,7 @@ public class TasksController {
           "Dependency added to task #" + taskId,
           "A task dependency was added.",
           List.of("Task ID: " + taskId, "Blocked by task ID: " + dependsOnTaskId),
-          pmToolBaseUrl + "/projects",
+          pmToolProperties.getBaseUrl() + "/projects",
           "Open task"
       );
     }
@@ -269,7 +274,7 @@ public class TasksController {
           "Dependency removed from task #" + taskId,
           "A task dependency was removed.",
           List.of("Task ID: " + taskId, "Removed blocker task ID: " + dependsOnId),
-          pmToolBaseUrl + "/projects",
+          pmToolProperties.getBaseUrl() + "/projects",
           "Open project"
       );
     }

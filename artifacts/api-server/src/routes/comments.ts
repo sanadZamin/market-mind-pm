@@ -4,11 +4,11 @@ import { eq } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { CreateCommentBody } from "@workspace/api-zod";
 import { sendTeamUpdateEmail } from "../lib/notifications.js";
+import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
 
 const router: IRouter = Router();
-const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 const getTaskLink = (projectId: number, taskId: number) =>
-  `${PM_TOOL_BASE_URL}/projects/${projectId}?taskId=${taskId}`;
+  `${resolvePmToolBaseUrl()}/projects/${projectId}?taskId=${taskId}`;
 
 router.use(requireAuth as any);
 
@@ -54,7 +54,7 @@ router.post("/tasks/:taskId/comments", async (req: AuthenticatedRequest, res) =>
     subject: `New comment on task #${taskId}`,
     intro: `A comment was added to a task.`,
     details: [`Task ID: ${taskId}`],
-    actionUrl: task ? getTaskLink(task.projectId, taskId) : `${PM_TOOL_BASE_URL}/projects`,
+    actionUrl: task ? getTaskLink(task.projectId, taskId) : `${resolvePmToolBaseUrl()}/projects`,
     actionLabel: "Open task",
   });
 });

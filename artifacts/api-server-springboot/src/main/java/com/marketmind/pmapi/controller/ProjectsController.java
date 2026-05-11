@@ -3,6 +3,7 @@ package com.marketmind.pmapi.controller;
 import com.marketmind.pmapi.model.Project;
 import com.marketmind.pmapi.repository.ProjectRepository;
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
+import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.OllamaClient;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,18 +22,18 @@ public class ProjectsController {
   private final ProjectRepository projectRepository;
   private final OllamaClient ollamaClient;
   private final TeamUpdateEmailService teamUpdateEmailService;
-
-  @org.springframework.beans.factory.annotation.Value("${PM_TOOL_BASE_URL:http://localhost:5173}")
-  private String pmToolBaseUrl;
+  private final PmToolProperties pmToolProperties;
 
   public ProjectsController(
       ProjectRepository projectRepository,
       OllamaClient ollamaClient,
-      TeamUpdateEmailService teamUpdateEmailService
+      TeamUpdateEmailService teamUpdateEmailService,
+      PmToolProperties pmToolProperties
   ) {
     this.projectRepository = projectRepository;
     this.ollamaClient = ollamaClient;
     this.teamUpdateEmailService = teamUpdateEmailService;
+    this.pmToolProperties = pmToolProperties;
   }
 
   @GetMapping
@@ -65,7 +66,7 @@ public class ProjectsController {
         "Project created: " + created.name,
         "A new project was created.",
         List.of("Project: " + created.name, "Status: " + created.status),
-        pmToolBaseUrl + "/projects/" + created.id,
+        pmToolProperties.getBaseUrl() + "/projects/" + created.id,
         "Open project"
     );
 
@@ -140,7 +141,7 @@ public class ProjectsController {
               "Project updated: " + updated.name,
               "A project was updated.",
               List.of("Project: " + updated.name, "Status: " + updated.status),
-              pmToolBaseUrl + "/projects/" + updated.id,
+              pmToolProperties.getBaseUrl() + "/projects/" + updated.id,
               "Open project"
           );
           return ResponseEntity.ok(updated);
@@ -160,7 +161,7 @@ public class ProjectsController {
           "Project deleted: #" + projectId,
           "A project was deleted.",
           List.of("Project ID: " + projectId),
-          pmToolBaseUrl + "/projects",
+          pmToolProperties.getBaseUrl() + "/projects",
           "View projects"
       );
     }

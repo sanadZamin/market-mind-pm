@@ -4,11 +4,17 @@ import { eq, and, inArray, or, isNull } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { CreateTaskBody, UpdateTaskBody, ListTasksQueryParams } from "@workspace/api-zod";
 import { sendTeamUpdateEmail } from "../lib/notifications.js";
+import {
+  describeTaskChanges,
+  taskMeaningfulFieldsChanged,
+  toTaskEmailSnapshot,
+} from "../lib/task-update-change-description.js";
+import { allowTeamUpdateEmailDedupe, stableTaskSnapshotForDedupe } from "../lib/team-update-email-dedupe.js";
+import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
 
 const router: IRouter = Router({ mergeParams: true });
-const PM_TOOL_BASE_URL = process.env.PM_TOOL_BASE_URL ?? "http://localhost:5173";
 const getTaskLink = (projectId: number, taskId: number) =>
-  `${PM_TOOL_BASE_URL}/projects/${projectId}?taskId=${taskId}`;
+  `${resolvePmToolBaseUrl()}/projects/${projectId}?taskId=${taskId}`;
 
 router.use(requireAuth as any);
 
@@ -127,15 +133,66 @@ router.put("/tasks/:taskId", async (req: AuthenticatedRequest, res) => {
     res.status(400).json({ error: "Bad request", message: parsed.error.message });
     return;
   }
+  const [existingRow] = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId));
+  if (!existingRow) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const [beforeEnriched] = await enrichTasks([existingRow]);
+
   const [task] = await db.update(tasksTable).set({ ...parsed.data, updatedAt: new Date() } as any).where(eq(tasksTable.id, taskId)).returning();
-  if (!task) { res.status(404).json({ error: "Not found" }); return; }
+  if (!task) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   const [result] = await enrichTasks([task]);
   res.json(result);
+
+  const snap = (t: (typeof beforeEnriched)) =>
+    toTaskEmailSnapshot({
+      title: t.title,
+      description: t.description ?? null,
+      status: t.status,
+      priority: t.priority,
+      assigneeId: t.assigneeId,
+      assignee: t.assignee,
+      startDate: t.startDate,
+      dueDate: t.dueDate,
+      estimatedHours: t.estimatedHours,
+      tags: t.tags,
+      position: t.position,
+    });
+  const beforeSnap = snap(beforeEnriched);
+  const afterSnap = snap(result);
+  if (!taskMeaningfulFieldsChanged(beforeSnap, afterSnap)) {
+    return;
+  }
+  if (
+    !allowTeamUpdateEmailDedupe(
+      taskId,
+      req.userId!,
+      stableTaskSnapshotForDedupe({
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        assigneeId: task.assigneeId,
+        startDate: task.startDate,
+        dueDate: task.dueDate,
+        estimatedHours: task.estimatedHours,
+        tags: Array.isArray(task.tags) ? task.tags : [],
+        position: task.position,
+      }),
+    )
+  ) {
+    return;
+  }
+
   await sendTeamUpdateEmail({
     actorUserId: req.userId!,
     subject: `Task updated: ${task.title}`,
     intro: `A task was updated.`,
-    details: [`Task: ${task.title}`, `Status: ${task.status}`],
+    details: describeTaskChanges(beforeSnap, afterSnap),
     actionUrl: getTaskLink(task.projectId, task.id),
     actionLabel: "Open task",
   });
@@ -153,7 +210,7 @@ router.delete("/tasks/:taskId", async (req: AuthenticatedRequest, res) => {
       subject: `Task deleted: ${task.title}`,
       intro: `A task was deleted.`,
       details: [`Task: ${task.title}`],
-      actionUrl: `${PM_TOOL_BASE_URL}/projects/${task.projectId}`,
+      actionUrl: `${resolvePmToolBaseUrl()}/projects/${task.projectId}`,
       actionLabel: "View project",
     });
   }
@@ -243,7 +300,7 @@ router.post("/tasks/:taskId/dependencies", async (req: AuthenticatedRequest, res
     subject: `Dependency added to task #${taskId}`,
     intro: `A task dependency was added.`,
     details: [`Task ID: ${taskId}`, `Blocked by task ID: ${dependsOnTaskId}`],
-    actionUrl: blocker ? getTaskLink(blocker.projectId, taskId) : `${PM_TOOL_BASE_URL}/projects`,
+    actionUrl: blocker ? getTaskLink(blocker.projectId, taskId) : `${resolvePmToolBaseUrl()}/projects`,
     actionLabel: "Open task",
   });
 });
@@ -261,7 +318,7 @@ router.delete("/tasks/:taskId/dependencies/:dependsOnId", async (req: Authentica
     subject: `Dependency removed from task #${taskId}`,
     intro: `A task dependency was removed.`,
     details: [`Task ID: ${taskId}`, `Removed blocker task ID: ${dependsOnId}`],
-    actionUrl: task ? getTaskLink(task.projectId, taskId) : `${PM_TOOL_BASE_URL}/projects`,
+    actionUrl: task ? getTaskLink(task.projectId, taskId) : `${resolvePmToolBaseUrl()}/projects`,
     actionLabel: "Open task",
   });
 });

@@ -3,6 +3,7 @@ package com.marketmind.pmapi.controller;
 import com.marketmind.pmapi.model.Comment;
 import com.marketmind.pmapi.repository.CommentRepository;
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
+import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -17,13 +18,16 @@ import java.util.Optional;
 public class CommentsController {
   private final CommentRepository commentRepository;
   private final TeamUpdateEmailService teamUpdateEmailService;
+  private final PmToolProperties pmToolProperties;
 
-  @org.springframework.beans.factory.annotation.Value("${PM_TOOL_BASE_URL:http://localhost:5173}")
-  private String pmToolBaseUrl;
-
-  public CommentsController(CommentRepository commentRepository, TeamUpdateEmailService teamUpdateEmailService) {
+  public CommentsController(
+      CommentRepository commentRepository,
+      TeamUpdateEmailService teamUpdateEmailService,
+      PmToolProperties pmToolProperties
+  ) {
     this.commentRepository = commentRepository;
     this.teamUpdateEmailService = teamUpdateEmailService;
+    this.pmToolProperties = pmToolProperties;
   }
 
   private int requireUserId(HttpServletRequest request) {
@@ -62,7 +66,7 @@ public class CommentsController {
         "New comment on task #" + taskId,
         "A comment was added to a task.",
         List.of("Task ID: " + taskId),
-        pmToolBaseUrl + "/projects",
+        pmToolProperties.getBaseUrl() + "/projects",
         "Open project"
     );
 

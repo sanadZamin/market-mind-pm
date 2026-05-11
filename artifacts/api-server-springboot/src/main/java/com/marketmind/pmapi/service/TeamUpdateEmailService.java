@@ -35,9 +35,6 @@ public class TeamUpdateEmailService {
   @Value("${EMAIL_FROM:no-reply@localhost}")
   private String emailFrom;
 
-  @Value("${PM_TOOL_BASE_URL:http://localhost:5173}")
-  private String pmToolBaseUrl;
-
   @Value("${EMAIL_LOGO_URL:}")
   private String emailLogoUrl;
 

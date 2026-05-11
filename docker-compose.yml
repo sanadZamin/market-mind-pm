@@ -25,7 +25,7 @@ services:
       # Set EMAIL_FROM in compose.override.yml, env_file, or `environment:` with a real verified sender when deploying.
       EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
       EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
-      PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-http://localhost:5173}
+      # Email action links: set PM_TOOL_BASE_URL or PUBLIC_APP_URL in compose.override.yml / env (see README).
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
       OLLAMA_THINK: ${OLLAMA_THINK:-false}
@@ -60,7 +60,7 @@ services:
       # Set EMAIL_FROM in compose.override.yml, env_file, or `environment:` with a real verified sender when deploying.
       EMAIL_LOGO_URL: ${EMAIL_LOGO_URL:-}
       EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-}
-      PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-http://localhost:5173}
+      # Email action links: set PM_TOOL_BASE_URL or PUBLIC_APP_URL in compose.override.yml / env (see README).
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
       OLLAMA_THINK: ${OLLAMA_THINK:-false}

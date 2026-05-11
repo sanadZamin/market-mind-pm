@@ -20,6 +20,7 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
+import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 
 @RestController
@@ -28,9 +29,7 @@ public class ImportExcelController {
   private final ObjectMapper objectMapper;
   private final RestTemplate restTemplate;
   private final TeamUpdateEmailService teamUpdateEmailService;
-
-  @Value("${PM_TOOL_BASE_URL:http://localhost:5173}")
-  private String pmToolBaseUrl;
+  private final PmToolProperties pmToolProperties;
 
   @Value("${ollama.baseUrl}")
   private String ollamaBaseUrl;
@@ -44,12 +43,14 @@ public class ImportExcelController {
   public ImportExcelController(
       JdbcTemplate jdbcTemplate,
       ObjectMapper objectMapper,
-      TeamUpdateEmailService teamUpdateEmailService
+      TeamUpdateEmailService teamUpdateEmailService,
+      PmToolProperties pmToolProperties
   ) {
     this.jdbcTemplate = jdbcTemplate;
     this.objectMapper = objectMapper;
     this.restTemplate = new RestTemplate();
     this.teamUpdateEmailService = teamUpdateEmailService;
+    this.pmToolProperties = pmToolProperties;
   }
 
   @PostMapping("/projects/{projectId}/import-excel")
@@ -323,7 +324,7 @@ public class ImportExcelController {
         "Bulk task import completed",
         "Tasks were imported from Excel.",
         List.of("Project ID: " + projectId, "Created tasks: " + createdTotal),
-        pmToolBaseUrl + "/projects/" + projectId,
+        pmToolProperties.getBaseUrl() + "/projects/" + projectId,
         "Open project"
     );
 
