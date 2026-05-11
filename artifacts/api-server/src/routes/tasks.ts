@@ -11,6 +11,11 @@ import {
 } from "../lib/task-update-change-description.js";
 import { allowTeamUpdateEmailDedupe, stableTaskSnapshotForDedupe } from "../lib/team-update-email-dedupe.js";
 import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
+import {
+  buildTaskRephrasePrompt,
+  callOllamaForRephrase,
+  rephraseOllamaTimeoutMs,
+} from "../lib/rephrase-ollama.js";
 
 const router: IRouter = Router({ mergeParams: true });
 const getTaskLink = (projectId: number, taskId: number) =>
@@ -114,6 +119,89 @@ router.post("/projects/:projectId/tasks", async (req: AuthenticatedRequest, res)
     actionUrl: getTaskLink(projectId, task.id),
     actionLabel: "Open task",
   });
+});
+
+router.post("/projects/:projectId/tasks/rephrase-description", async (req: AuthenticatedRequest, res) => {
+  const projectId = parseInt(req.params.projectId);
+  if (Number.isNaN(projectId)) {
+    res.status(400).json({ error: "Invalid projectId" });
+    return;
+  }
+  const description = typeof req.body?.description === "string" ? req.body.description.trim() : "";
+  if (!description) {
+    res.status(400).json({ error: "description is required" });
+    return;
+  }
+  const titleRaw = typeof req.body?.title === "string" ? req.body.title.trim() : "";
+  const title = titleRaw.length > 0 ? titleRaw : "Untitled task";
+  const prompt = buildTaskRephrasePrompt(title, description);
+  try {
+    const rewritten = await callOllamaForRephrase(prompt);
+    res.json({ description: rewritten });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const aborted =
+      (err as { name?: string })?.name === "AbortError" || /abort/i.test(message);
+    console.error("[tasks/rephrase-description]", message);
+    if (message.startsWith("Ollama ") || message === "LLM returned invalid JSON" || message === "LLM returned empty response") {
+      const isOllamaHttp = message.startsWith("Ollama ");
+      res.status(502).json(
+        isOllamaHttp
+          ? { error: "LLM request failed", message }
+          : { error: message },
+      );
+      return;
+    }
+    res.status(502).json({
+      error: "Failed to rephrase description",
+      message: aborted
+        ? `LLM request timed out after ${rephraseOllamaTimeoutMs() / 1000}s. Increase OLLAMA_TIMEOUT_MS (e.g. 600000), warm the model on the Ollama host, or fix any proxy_read_timeout in front of Ollama.`
+        : message,
+    });
+  }
+});
+
+router.post("/tasks/:taskId/rephrase-description", async (req: AuthenticatedRequest, res) => {
+  const taskId = parseInt(req.params.taskId);
+  if (Number.isNaN(taskId)) {
+    res.status(400).json({ error: "Invalid taskId" });
+    return;
+  }
+  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId));
+  if (!task) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const description = typeof req.body?.description === "string" ? req.body.description.trim() : "";
+  if (!description) {
+    res.status(400).json({ error: "description is required" });
+    return;
+  }
+  const prompt = buildTaskRephrasePrompt(task.title, description);
+  try {
+    const rewritten = await callOllamaForRephrase(prompt);
+    res.json({ description: rewritten });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const aborted =
+      (err as { name?: string })?.name === "AbortError" || /abort/i.test(message);
+    console.error("[tasks/:taskId/rephrase-description]", message);
+    if (message.startsWith("Ollama ") || message === "LLM returned invalid JSON" || message === "LLM returned empty response") {
+      const isOllamaHttp = message.startsWith("Ollama ");
+      res.status(502).json(
+        isOllamaHttp
+          ? { error: "LLM request failed", message }
+          : { error: message },
+      );
+      return;
+    }
+    res.status(502).json({
+      error: "Failed to rephrase description",
+      message: aborted
+        ? `LLM request timed out after ${rephraseOllamaTimeoutMs() / 1000}s. Increase OLLAMA_TIMEOUT_MS (e.g. 600000), warm the model on the Ollama host, or fix any proxy_read_timeout in front of Ollama.`
+        : message,
+    });
+  }
 });
 
 // ── GET single task ──

@@ -5,6 +5,8 @@
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/MailHostPresentCondition.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/OptionalMailSenderConfiguration.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/PasswordEncoderConfig.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/PmToolProperties.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/PmToolUrlStartupCheck.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/SecurityConfig.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/TokenService.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/WebConfig.java
@@ -32,5 +34,6 @@
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/OllamaClient.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskChangeDetector.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskEnrichmentService.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskUpdateChangeDescription.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TeamUpdateEmailDedupeService.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TeamUpdateEmailService.java

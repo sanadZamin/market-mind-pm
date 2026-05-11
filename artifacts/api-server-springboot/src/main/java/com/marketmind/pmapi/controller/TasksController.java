@@ -8,6 +8,7 @@ import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.TaskChangeDetector;
 import com.marketmind.pmapi.service.TaskEnrichmentService;
 import com.marketmind.pmapi.service.TaskUpdateChangeDescription;
+import com.marketmind.pmapi.service.OllamaClient;
 import com.marketmind.pmapi.service.TeamUpdateEmailDedupeService;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,19 +27,22 @@ public class TasksController {
   private final TeamUpdateEmailService teamUpdateEmailService;
   private final TeamUpdateEmailDedupeService teamUpdateEmailDedupeService;
   private final PmToolProperties pmToolProperties;
+  private final OllamaClient ollamaClient;
 
   public TasksController(
       TaskRepository taskRepository,
       TaskEnrichmentService taskEnrichmentService,
       TeamUpdateEmailService teamUpdateEmailService,
       TeamUpdateEmailDedupeService teamUpdateEmailDedupeService,
-      PmToolProperties pmToolProperties
+      PmToolProperties pmToolProperties,
+      OllamaClient ollamaClient
   ) {
     this.taskRepository = taskRepository;
     this.taskEnrichmentService = taskEnrichmentService;
     this.teamUpdateEmailService = teamUpdateEmailService;
     this.teamUpdateEmailDedupeService = teamUpdateEmailDedupeService;
     this.pmToolProperties = pmToolProperties;
+    this.ollamaClient = ollamaClient;
   }
 
   /** SPA opens the task sheet when the URL contains {@code ?taskId=}. */
@@ -287,6 +291,56 @@ public class TasksController {
       );
     }
     return ResponseEntity.ok(Map.of("success", true, "message", "Dependency removed"));
+  }
+
+  /** Rephrase task body text using Ollama (same stack as project description rephrase). */
+  @PostMapping("/tasks/{taskId}/rephrase-description")
+  public ResponseEntity<?> rephraseTaskDescriptionForExisting(
+      @PathVariable int taskId,
+      @RequestBody Map<String, Object> body
+  ) {
+    Optional<Task> taskOpt = taskRepository.getTask(taskId);
+    if (taskOpt.isEmpty()) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
+    }
+    Task task = taskOpt.get();
+    Object dObj = body.get("description");
+    String description = (dObj instanceof String) ? ((String) dObj).trim() : "";
+    if (description.isBlank()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "description is required"));
+    }
+    try {
+      String rewritten = ollamaClient.rephraseTaskDescription(task.title, description);
+      return ResponseEntity.ok(Map.of("description", rewritten));
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+          .body(Map.of("error", "Failed to rephrase description", "message", e.getMessage()));
+    }
+  }
+
+  /** Rephrase description for the create-task dialog (no task id yet); uses working title from the body. */
+  @PostMapping("/projects/{projectId}/tasks/rephrase-description")
+  public ResponseEntity<?> rephraseTaskDescriptionDraft(
+      @SuppressWarnings("unused") @PathVariable int projectId,
+      @RequestBody Map<String, Object> body
+  ) {
+    Object titleObj = body.get("title");
+    String title =
+        titleObj instanceof String && !((String) titleObj).isBlank()
+            ? ((String) titleObj).trim()
+            : "Untitled task";
+    Object dObj = body.get("description");
+    String description = (dObj instanceof String) ? ((String) dObj).trim() : "";
+    if (description.isBlank()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "description is required"));
+    }
+    try {
+      String rewritten = ollamaClient.rephraseTaskDescription(title, description);
+      return ResponseEntity.ok(Map.of("description", rewritten));
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+          .body(Map.of("error", "Failed to rephrase description", "message", e.getMessage()));
+    }
   }
 }
 

@@ -69,5 +69,47 @@ public class OllamaClient {
     }
     return content.get("content").asText().trim();
   }
+
+  /** Same Ollama transport as {@link #rephraseProjectDescription}; prompt tuned for task notes / scope text. */
+  public String rephraseTaskDescription(String taskTitle, String originalDescription) {
+    String safeTitle =
+        taskTitle == null || taskTitle.isBlank() ? "Untitled task" : taskTitle.trim();
+    String prompt =
+        "Rewrite the following task description in a concise, professional tone (clear for engineers and PMs, no fluff).\n\n"
+            + "Requirements:\n"
+            + "- Be noticeably shorter than the original when possible: tighten wording, drop repetition, keep one or two short paragraphs or a tight bullet-style flow as plain sentences (no markdown bullets unless the source already used them).\n"
+            + "- Stay factual; do not invent scope, dates, owners, or acceptance criteria not implied by the original.\n"
+            + "- Prefer imperative or direct phrasing suitable for a ticket body.\n\n"
+            + "Output only the rewritten description as plain prose (no title line, no markdown headings, no quotation marks wrapping the whole text).\n\n"
+            + "Task title: "
+            + safeTitle
+            + "\n"
+            + "Original description:\n"
+            + originalDescription;
+
+    Map<String, Object> body = new HashMap<>();
+    body.put("model", model);
+    body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+    body.put("stream", false);
+    body.put("keep_alive", "30m");
+    body.put("think", think);
+    body.put("options", Map.of("temperature", 0.25, "num_predict", 380));
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+    String url = baseUrl + "/api/chat";
+    ResponseEntity<JsonNode> resp = restTemplate.postForEntity(url, entity, JsonNode.class);
+    if (!resp.getStatusCode().is2xxSuccessful()) {
+      throw new IllegalStateException("Ollama request failed: " + resp.getStatusCode());
+    }
+
+    JsonNode content = resp.getBody() != null ? resp.getBody().get("message") : null;
+    if (content == null || content.get("content") == null) {
+      throw new IllegalStateException("Ollama returned empty/invalid response");
+    }
+    return content.get("content").asText().trim();
+  }
 }
 

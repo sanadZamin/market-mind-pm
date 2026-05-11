@@ -1802,11 +1802,57 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
   const mutation   = useCreateTask();
   const queryClient = useQueryClient();
   const { toast }  = useToast();
+  const [isRephrasingNewTaskDescription, setIsRephrasingNewTaskDescription] = useState(false);
 
   const form = useForm<TaskForm>({
     resolver: zodResolver(taskSchema),
-    defaultValues: { status: "todo", priority: "medium" },
+    defaultValues: { status: "todo", priority: "medium", description: "" },
   });
+
+  const handleRephraseNewTaskDescription = async () => {
+    const title = (form.getValues("title") || "").trim();
+    const text = (form.getValues("description") || "").trim();
+    if (!text) {
+      toast({ variant: "destructive", title: "Add a description first" });
+      return;
+    }
+    setIsRephrasingNewTaskDescription(true);
+    try {
+      const response = await fetch(
+        `${getApiRoot()}/projects/${projectId}/tasks/rephrase-description`,
+        {
+          method: "POST",
+          headers: {
+            ...getAuthRequest().headers,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: title || "Untitled task",
+            description: text,
+          }),
+        },
+      );
+      const data = (await response.json().catch(() => ({}))) as {
+        description?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      }
+      if (!data.description) throw new Error("Empty rephrased description");
+      form.setValue("description", data.description, { shouldDirty: true });
+      toast({ title: "Description rephrased" });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Failed to rephrase description",
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setIsRephrasingNewTaskDescription(false);
+    }
+  };
 
   const onSubmit = async (data: TaskForm) => {
     try {
@@ -1814,6 +1860,9 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
       if (!payload.startDate)   delete payload.startDate;
       if (!payload.dueDate)     delete payload.dueDate;
       if (payload.assigneeId == null) delete payload.assigneeId;
+      const desc = typeof payload.description === "string" ? payload.description.trim() : "";
+      if (!desc) delete payload.description;
+      else payload.description = desc;
       await createTask(projectId, payload as any, getAuthRequest());
       toast({ title: "Task created" });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
@@ -1834,6 +1883,27 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
           <div className="space-y-2">
             <Label>Title</Label>
             <Input {...form.register("title")} className="bg-background" placeholder="Task title..." />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Description</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleRephraseNewTaskDescription()}
+                disabled={isRephrasingNewTaskDescription}
+                className="h-8 rounded-lg gap-1.5 shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {isRephrasingNewTaskDescription ? "Rephrasing..." : "AI Rephrase"}
+              </Button>
+            </div>
+            <Textarea
+              {...form.register("description")}
+              className="bg-background min-h-[100px] resize-y rounded-xl"
+              placeholder="What needs to be done, context, links…"
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -1934,6 +2004,12 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
   const [showSubtaskInput, setShowSubtaskInput]     = useState(false);
   const [selectedBlockerId, setSelectedBlockerId]   = useState<string>("");
   const [showDeleteConfirm, setShowDeleteConfirm]   = useState(false);
+  const [descriptionDraft, setDescriptionDraft]     = useState("");
+  const [isRephrasingTaskDescription, setIsRephrasingTaskDescription] = useState(false);
+
+  useEffect(() => {
+    if (task) setDescriptionDraft(task.description ?? "");
+  }, [task?.id, task?.description]);
 
   const handleDelete = async () => {
     try {
@@ -2012,6 +2088,55 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
     }
   };
 
+  const handleRephraseTaskDescription = async () => {
+    const text = descriptionDraft.trim();
+    if (!text) {
+      toast({ variant: "destructive", title: "Add a description first" });
+      return;
+    }
+    setIsRephrasingTaskDescription(true);
+    try {
+      // Same project-scoped route as create-task rephrase (avoids /tasks/:id lookup 404s from
+      // proxy/path quirks or stale ids); server only needs title + body for the LLM prompt.
+      const response = await fetch(
+        `${getApiRoot()}/projects/${projectId}/tasks/rephrase-description`,
+        {
+        method: "POST",
+        headers: {
+          ...getAuthRequest().headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: (task?.title ?? "").trim() || "Untitled task",
+          description: text,
+        }),
+      },
+      );
+      const data = (await response.json().catch(() => ({}))) as {
+        description?: string;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      }
+      if (!data.description) throw new Error("Empty rephrased description");
+      setDescriptionDraft(data.description);
+      await updateTask(taskId!, { description: data.description.trim() } as any, getAuthRequest());
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+      toast({ title: "Description rephrased" });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Failed to rephrase description",
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setIsRephrasingTaskDescription(false);
+    }
+  };
+
   const completedSubtasks = subtasks?.filter((s: Task) => s.status === "done").length ?? 0;
   const totalSubtasks     = subtasks?.length ?? 0;
   const isOverdue = task?.dueDate && isPast(new Date(task.dueDate)) && task?.status !== "done";
@@ -2079,7 +2204,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
-                    <option value="critical">Critical</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
 
@@ -2102,7 +2227,6 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                     value={task.status}
                     onChange={e => handleFieldUpdate("status", e.target.value)}
                   >
-                    <option value="backlog">Backlog</option>
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
                     <option value="in_review">In Review</option>
@@ -2263,10 +2387,36 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
 
               {/* ── DESCRIPTION ── */}
               <section>
-                <h4 className="flex items-center gap-2 font-semibold mb-3 text-foreground text-sm"><AlignLeft className="w-4 h-4 text-primary"/> Description</h4>
-                <div className="text-sm text-muted-foreground bg-secondary/10 p-4 rounded-xl border border-border/30 min-h-[80px]">
-                  {task.description || "No description provided."}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h4 className="flex items-center gap-2 font-semibold text-foreground text-sm m-0">
+                    <AlignLeft className="w-4 h-4 text-primary" />
+                    Description
+                  </h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleRephraseTaskDescription()}
+                    disabled={isRephrasingTaskDescription}
+                    className="h-8 rounded-lg gap-1.5 shrink-0"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {isRephrasingTaskDescription ? "Rephrasing..." : "AI Rephrase"}
+                  </Button>
                 </div>
+                <Textarea
+                  className="bg-secondary/10 border-border/30 rounded-xl min-h-[120px] text-sm text-foreground placeholder:text-muted-foreground resize-y"
+                  placeholder="Add details, acceptance criteria, links…"
+                  value={descriptionDraft}
+                  onChange={(e) => setDescriptionDraft(e.target.value)}
+                  onBlur={() => {
+                    const trimmed = descriptionDraft.trim();
+                    const prev = (task.description ?? "").trim();
+                    if (trimmed === prev) return;
+                    void handleFieldUpdate("description", trimmed.length ? trimmed : null);
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1.5">Saves when you leave this field.</p>
               </section>
 
               {/* ── COMMENTS ── */}
