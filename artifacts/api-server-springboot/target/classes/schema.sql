@@ -83,3 +83,11 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL DEFAULT now()
 );@@
+
+-- Tracks which delayed-task signatures have already been included in the midnight digest.
+-- One row per task; signature changes when due_date/status changes.
+CREATE TABLE IF NOT EXISTS delayed_task_digest_state (
+  task_id integer PRIMARY KEY REFERENCES tasks (id) ON DELETE CASCADE,
+  signature text NOT NULL,
+  notified_at timestamp NOT NULL DEFAULT now()
+);@@

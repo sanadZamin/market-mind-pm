@@ -69,5 +69,12 @@ pm:
       password: ${PM_DEFAULT_USER_PASSWORD:changeme}
       role: ${PM_DEFAULT_USER_ROLE:admin}
 
+  # Daily delayed-task digest scheduler.
+  delayed-task-digest:
+    enabled: ${PM_DELAYED_TASK_DIGEST_ENABLED:true}
+    # Default: every day at midnight (set PM_DELAYED_TASK_DIGEST_ZONE to your deployment timezone).
+    cron: ${PM_DELAYED_TASK_DIGEST_CRON:0 0 0 * * *}
+    zone: ${PM_DELAYED_TASK_DIGEST_ZONE:UTC}
+
 
 

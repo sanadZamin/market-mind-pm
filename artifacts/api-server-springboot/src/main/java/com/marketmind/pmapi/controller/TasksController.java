@@ -16,6 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,6 +77,31 @@ public class TasksController {
     return null;
   }
 
+  /** Delayed == due date is before today and task is not done. */
+  private static boolean isDelayedTask(Task t) {
+    if (t == null || t.status == null || "done".equalsIgnoreCase(t.status)) return false;
+    if (t.dueDate == null || t.dueDate.isBlank()) return false;
+    LocalDate due = parseTaskDueDate(t.dueDate);
+    return due != null && due.isBefore(LocalDate.now());
+  }
+
+  private static LocalDate parseTaskDueDate(String raw) {
+    if (raw == null || raw.isBlank()) return null;
+    String value = raw.trim();
+    try {
+      if (value.length() >= 10) {
+        return LocalDate.parse(value.substring(0, 10));
+      }
+    } catch (Exception ignored) {
+      // fallback below
+    }
+    try {
+      return OffsetDateTime.parse(value).toLocalDate();
+    } catch (Exception ignored) {
+      return null;
+    }
+  }
+
   @GetMapping("/projects/{projectId}/tasks")
   public ResponseEntity<?> listTasks(
       @PathVariable int projectId,
@@ -107,14 +134,16 @@ public class TasksController {
     Task created = taskRepository.createTask(projectId, fields, userId);
     List<Task> enriched = taskEnrichmentService.enrichTasks(List.of(created));
 
-    teamUpdateEmailService.sendTeamUpdateEmail(
-        userId,
-        "Task created: " + enriched.get(0).title,
-        "A task was created.",
-        List.of("Task: " + enriched.get(0).title, "Project ID: " + projectId),
-        pmToolProperties.getBaseUrl() + "/projects/" + projectId + "?taskId=" + enriched.get(0).id,
-        "Open task"
-    );
+    if (isDelayedTask(enriched.get(0))) {
+      teamUpdateEmailService.sendTeamUpdateEmail(
+          userId,
+          "Task delayed: " + enriched.get(0).title,
+          "A delayed task requires attention.",
+          List.of("Task: " + enriched.get(0).title, "Project ID: " + projectId),
+          pmToolProperties.getBaseUrl() + "/projects/" + projectId + "?taskId=" + enriched.get(0).id,
+          "Open task"
+      );
+    }
 
     return ResponseEntity.status(HttpStatus.CREATED).body(enriched.get(0));
   }
@@ -162,14 +191,15 @@ public class TasksController {
     Integer userId = (Integer) request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
     if (userId != null
         && TaskChangeDetector.mergedFieldsChangeTask(existing, fields)
+        && isDelayedTask(enriched.get(0))
         && teamUpdateEmailDedupeService.allowSamePayloadWithinWindow(taskId, userId, fields)) {
       List<Task> enrichedBefore = taskEnrichmentService.enrichTasks(List.of(existing));
       List<String> detailLines =
           TaskUpdateChangeDescription.describeChanges(enrichedBefore.get(0), enriched.get(0));
       teamUpdateEmailService.sendTeamUpdateEmail(
           userId,
-          "Task updated: " + enriched.get(0).title,
-          "A task was updated.",
+          "Task delayed: " + enriched.get(0).title,
+          "A delayed task was updated.",
           detailLines,
           pmToolProperties.getBaseUrl() + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
           "Open task"
@@ -184,13 +214,13 @@ public class TasksController {
     taskRepository.deleteTask(taskId);
     if (before.isPresent()) {
       Object userIdObj = request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
-      if (userIdObj instanceof Integer) {
+      if (userIdObj instanceof Integer && isDelayedTask(before.get())) {
         int userId = (Integer) userIdObj;
         Task t = before.get();
         teamUpdateEmailService.sendTeamUpdateEmail(
             userId,
-            "Task deleted: " + t.title,
-            "A task was deleted.",
+            "Delayed task deleted: " + t.title,
+            "A delayed task was deleted.",
             List.of("Task ID: " + taskId, "Project ID: " + t.projectId),
             pmToolProperties.getBaseUrl() + "/projects/" + t.projectId,
             "Open project"
@@ -223,14 +253,16 @@ public class TasksController {
     Task created = taskRepository.createSubtask(taskId, fields, userId);
     List<Task> enriched = taskEnrichmentService.enrichTasks(List.of(created));
 
-    teamUpdateEmailService.sendTeamUpdateEmail(
-        userId,
-        "Subtask created: " + enriched.get(0).title,
-        "A subtask was created.",
-        List.of("Subtask: " + enriched.get(0).title, "Parent task ID: " + taskId),
-        pmToolProperties.getBaseUrl() + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
-        "Open subtask"
-    );
+    if (isDelayedTask(enriched.get(0))) {
+      teamUpdateEmailService.sendTeamUpdateEmail(
+          userId,
+          "Subtask delayed: " + enriched.get(0).title,
+          "A delayed subtask requires attention.",
+          List.of("Subtask: " + enriched.get(0).title, "Parent task ID: " + taskId),
+          pmToolProperties.getBaseUrl() + "/projects/" + enriched.get(0).projectId + "?taskId=" + enriched.get(0).id,
+          "Open subtask"
+      );
+    }
 
     return ResponseEntity.status(HttpStatus.CREATED).body(enriched.get(0));
   }
@@ -258,11 +290,12 @@ public class TasksController {
     TaskDependency created = taskRepository.addDependency(taskId, dependsOnTaskId);
 
     Integer userId = (Integer) request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
-    if (userId != null) {
+    Optional<Task> taskOpt = taskRepository.getTask(taskId);
+    if (userId != null && taskOpt.isPresent() && isDelayedTask(taskOpt.get())) {
       teamUpdateEmailService.sendTeamUpdateEmail(
           userId,
-          "Dependency added to task #" + taskId,
-          "A task dependency was added.",
+          "Dependency added to delayed task #" + taskId,
+          "A delayed task dependency was added.",
           List.of("Task ID: " + taskId, "Blocked by task ID: " + dependsOnTaskId),
           taskDeepLinkOrProjects(taskId),
           "Open task"
@@ -279,12 +312,13 @@ public class TasksController {
   ) {
     taskRepository.removeDependency(taskId, dependsOnId);
     Object userIdObj = request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
-    if (userIdObj instanceof Integer) {
+    Optional<Task> taskOpt = taskRepository.getTask(taskId);
+    if (userIdObj instanceof Integer && taskOpt.isPresent() && isDelayedTask(taskOpt.get())) {
       int userId = (Integer) userIdObj;
       teamUpdateEmailService.sendTeamUpdateEmail(
           userId,
-          "Dependency removed from task #" + taskId,
-          "A task dependency was removed.",
+          "Dependency removed from delayed task #" + taskId,
+          "A delayed task dependency was removed.",
           List.of("Task ID: " + taskId, "Removed blocker task ID: " + dependsOnId),
           taskDeepLinkOrProjects(taskId),
           "Open task"
