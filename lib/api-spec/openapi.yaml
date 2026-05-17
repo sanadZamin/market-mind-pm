@@ -1,11 +1,25 @@
 openapi: 3.1.0
 info:
-  title: Api
+  title: Market Mind PM API
   version: 0.1.0
-  description: Project Management Tool API
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    HTTP API for the Market Mind project management tool (Spring Boot and Node implementations share these route shapes).
+
+    **Base path:** All paths below are served under the servlet context **`/api`** (e.g. `https://host/api/projects`).
+
+    When the SPA is deployed under a subpath (e.g. **`/pm`**), the browser calls **`/pm/api/...`**; reverse proxies typically forward that to the backend **`/api/...`**.
+
+    **Authentication:** Most routes require `Authorization: Bearer <token>` from `POST /auth/login` or `POST /auth/register`.
+
+    **Not HTTP:** A scheduled job sends a daily **delayed tasks digest** email (config: `pm.delayed-task-digest.*` / `PM_DELAYED_TASK_DIGEST_*`). There is no REST endpoint for that digest.
+
+    **Health probes:** Actuator routes are documented under `paths` (`/actuator/health`, `/actuator/health/liveness`). No Bearer token required.
 servers:
   - url: /api
-    description: Base API path
+    description: API root (Spring `server.servlet.context-path=/api`)
 tags:
   - name: health
     description: Health operations
@@ -19,12 +33,19 @@ tags:
     description: Team members
   - name: comments
     description: Task comments
+  - name: import
+    description: Excel import
+  - name: ai
+    description: AI-assisted text (Ollama)
+security:
+  - bearerAuth: []
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
+      security: []
       responses:
         "200":
           description: Healthy
@@ -32,6 +53,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+        "429":
+          description: Rate limited (e.g. by API gateway)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /actuator/health:
+    get:
+      operationId: actuatorHealth
+      tags: [health]
+      summary: Spring Boot aggregate health (Actuator)
+      security: []
+      responses:
+        "200":
+          description: Component health JSON (UP/DOWN, etc.)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /actuator/health/liveness:
+    get:
+      operationId: actuatorHealthLiveness
+      tags: [health]
+      summary: Liveness probe for orchestrators
+      security: []
+      responses:
+        "200":
+          description: Liveness state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/me:
     get:
@@ -57,6 +126,7 @@ paths:
       operationId: login
       tags: [auth]
       summary: Login
+      security: []
       requestBody:
         required: true
         content:
@@ -82,6 +152,7 @@ paths:
       operationId: register
       tags: [auth]
       summary: Register new user
+      security: []
       requestBody:
         required: true
         content:
@@ -107,6 +178,7 @@ paths:
       operationId: logout
       tags: [auth]
       summary: Logout
+      security: []
       responses:
         "200":
           description: Logged out
@@ -114,6 +186,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /projects:
     get:
@@ -129,6 +207,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       operationId: createProject
       tags: [projects]
@@ -146,6 +226,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/rephrase-description:
+    post:
+      operationId: rephraseProjectDescriptionDraft
+      tags: [ai, projects]
+      summary: Rephrase project description (create flow, before project exists)
+      description: Uses Ollama. Optional `name` defaults to "Untitled project" when blank.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RephraseProjectDraftRequest"
+      responses:
+        "200":
+          description: Rewritten description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RephraseDescriptionResponse"
+        "400":
+          description: Missing description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Ollama or upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OllamaErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /projects/{projectId}:
     get:
@@ -171,6 +287,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     put:
       operationId: updateProject
       tags: [projects]
@@ -194,6 +312,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteProject
       tags: [projects]
@@ -211,6 +337,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/{projectId}/rephrase-description:
+    post:
+      operationId: rephraseProjectDescription
+      tags: [ai, projects]
+      summary: Rephrase project description for an existing project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RephraseDescriptionRequest"
+      responses:
+        "200":
+          description: Rewritten description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RephraseDescriptionResponse"
+        "400":
+          description: Missing description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Ollama or upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OllamaErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/{projectId}/import-excel:
+    post:
+      operationId: importExcelPreview
+      tags: [import, tasks]
+      summary: Parse an Excel file into a task preview (no DB writes)
+      description: |
+        Upload the first worksheet as `file` (multipart). Returns normalized `tasks` for the UI preview.
+        On LLM mapping failure, `llmError` may be set and `rawRows` included for debugging.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel workbook (.xlsx / .xls)
+      responses:
+        "200":
+          description: Parsed task rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExcelImportPreviewResponse"
+        "400":
+          description: Empty file, parse error, or unusable sheet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /projects/{projectId}/tasks:
     get:
@@ -228,10 +443,6 @@ paths:
           schema:
             type: string
             enum: [todo, in_progress, in_review, done]
-        - name: assigneeId
-          in: query
-          schema:
-            type: integer
         - name: priority
           in: query
           schema:
@@ -246,6 +457,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       operationId: createTask
       tags: [tasks]
@@ -269,6 +482,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/{projectId}/tasks/rephrase-description:
+    post:
+      operationId: rephraseTaskDescriptionDraft
+      tags: [ai, tasks]
+      summary: Rephrase task description (create flow, before task exists)
+      description: |
+        `projectId` is accepted for routing consistency; the draft uses `title` and `description` from the body only.
+        Optional `title` defaults to "Untitled task" when blank.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RephraseTaskDraftRequest"
+      responses:
+        "200":
+          description: Rewritten description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RephraseDescriptionResponse"
+        "400":
+          description: Missing description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Ollama or upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OllamaErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/{projectId}/tasks/bulk:
+    post:
+      operationId: bulkCreateTasks
+      tags: [import, tasks]
+      summary: Create many tasks (and subtasks) from a normalized import payload
+      description: |
+        Typically called after `POST .../import-excel` with the `tasks` array from the preview.
+        Assignee strings are resolved to user IDs by exact name or email match (case-insensitive).
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCreateTasksRequest"
+      responses:
+        "201":
+          description: Number of tasks inserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkCreateTasksResponse"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tasks/{taskId}:
     get:
@@ -294,6 +587,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     put:
       operationId: updateTask
       tags: [tasks]
@@ -317,6 +612,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteTask
       tags: [tasks]
@@ -334,6 +637,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tasks/{taskId}/rephrase-description:
+    post:
+      operationId: rephraseTaskDescription
+      tags: [ai, tasks]
+      summary: Rephrase task description for an existing task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RephraseDescriptionRequest"
+      responses:
+        "200":
+          description: Rewritten description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RephraseDescriptionResponse"
+        "400":
+          description: Missing description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Ollama or upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OllamaErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tasks/{taskId}/subtasks:
     get:
@@ -355,6 +705,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       operationId: createSubtask
       tags: [tasks]
@@ -378,6 +730,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tasks/{taskId}/dependencies:
     get:
@@ -399,6 +753,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TaskDependency"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       operationId: addTaskDependency
       tags: [tasks]
@@ -434,6 +790,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tasks/{taskId}/dependencies/{dependsOnId}:
     delete:
@@ -458,6 +816,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /tasks/{taskId}/comments:
     get:
@@ -479,6 +839,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       operationId: createComment
       tags: [comments]
@@ -502,6 +864,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Comment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /users:
     get:
@@ -517,8 +881,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Value of `token` from `POST /auth/login` or `POST /auth/register` (`Authorization` header).
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   schemas:
     HealthStatus:
       type: object
@@ -558,8 +939,7 @@ components:
         email:
           type: string
         avatarUrl:
-          type: string
-          nullable: true
+          type: [string, "null"]
         role:
           type: string
           enum: [admin, member]
@@ -619,8 +999,7 @@ components:
         name:
           type: string
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
         color:
           type: string
         status:
@@ -629,13 +1008,15 @@ components:
         ownerId:
           type: integer
         startDate:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+            - type: string
+              format: date
+            - type: "null"
         endDate:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+            - type: string
+              format: date
+            - type: "null"
         taskCount:
           type: integer
         completedTaskCount:
@@ -703,8 +1084,7 @@ components:
         title:
           type: string
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
         status:
           type: string
           enum: [todo, in_progress, in_review, done]
@@ -714,19 +1094,19 @@ components:
         projectId:
           type: integer
         parentTaskId:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         assigneeId:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         reporterId:
           type: integer
         assignee:
-          $ref: "#/components/schemas/User"
-          nullable: true
+          anyOf:
+            - $ref: "#/components/schemas/User"
+            - type: "null"
         reporter:
-          $ref: "#/components/schemas/User"
-          nullable: true
+          anyOf:
+            - $ref: "#/components/schemas/User"
+            - type: "null"
         subtaskCount:
           type: integer
         blockedByIds:
@@ -738,16 +1118,17 @@ components:
           items:
             type: integer
         startDate:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+            - type: string
+              format: date
+            - type: "null"
         dueDate:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+            - type: string
+              format: date
+            - type: "null"
         estimatedHours:
-          type: number
-          nullable: true
+          type: [number, "null"]
         tags:
           type: array
           items:
@@ -864,15 +1245,16 @@ components:
         dependsOnTaskId:
           type: integer
         dependsOnTask:
-          type: object
-          nullable: true
-          properties:
-            id:
-              type: integer
-            title:
-              type: string
-            status:
-              type: string
+          anyOf:
+            - type: object
+              properties:
+                id:
+                  type: integer
+                title:
+                  type: string
+                status:
+                  type: string
+            - type: "null"
         createdAt:
           type: string
           format: date-time
@@ -902,8 +1284,9 @@ components:
         userId:
           type: integer
         user:
-          $ref: "#/components/schemas/User"
-          nullable: true
+          anyOf:
+            - $ref: "#/components/schemas/User"
+            - type: "null"
         createdAt:
           type: string
           format: date-time
@@ -925,3 +1308,113 @@ components:
           type: string
       required:
         - content
+
+    RephraseDescriptionRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Raw text to rewrite (non-blank after trim)
+      required:
+        - description
+
+    RephraseProjectDraftRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Working project title for the prompt context
+        description:
+          type: string
+      required:
+        - description
+
+    RephraseTaskDraftRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Working task title for the prompt context
+        description:
+          type: string
+      required:
+        - description
+
+    RephraseDescriptionResponse:
+      type: object
+      properties:
+        description:
+          type: string
+      required:
+        - description
+
+    OllamaErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: [string, "null"]
+      required:
+        - error
+
+    ExcelTaskPreview:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        status:
+          type: string
+          enum: [todo, in_progress, in_review, done]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        assignee:
+          type: [string, "null"]
+        startDate:
+          type: [string, "null"]
+        dueDate:
+          type: [string, "null"]
+        parentTask:
+          type: [string, "null"]
+          description: When set, row is created as a subtask of the parent with this title
+
+    ExcelImportPreviewResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExcelTaskPreview"
+        llmError:
+          type: [string, "null"]
+        rawRows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Present when `llmError` is set — original sheet rows for debugging
+      required:
+        - tasks
+
+    BulkCreateTasksRequest:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExcelTaskPreview"
+          minItems: 1
+      required:
+        - tasks
+
+    BulkCreateTasksResponse:
+      type: object
+      properties:
+        created:
+          type: integer
+          description: Number of task rows inserted (parents and children)
+      required:
+        - created

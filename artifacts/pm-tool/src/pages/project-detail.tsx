@@ -53,7 +53,7 @@ import { format, differenceInDays, addDays, startOfDay, isPast, isToday } from "
 import {
   Plus, List, Trello, CalendarDays, MoreHorizontal, MessageSquare,
   Clock, AlignLeft, Calendar as CalendarIcon, GitBranch, User as UserIcon,
-  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil, FileDown, Sparkles
+  ChevronRight, ChevronDown, Link2, X, CheckSquare, AlertTriangle, Layers, FileSpreadsheet, Trash2, Pencil, FileDown, Sparkles, Filter
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useForm, Controller } from "react-hook-form";
@@ -911,9 +911,11 @@ type SortKey = "title" | "status" | "priority" | "dueDate" | "assignee";
 type SortDir = "asc" | "desc";
 const PRIORITY_ORDER: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4 };
 const STATUS_ORDER:   Record<string, number> = { todo: 1, in_progress: 2, in_review: 3, done: 4 };
+const LIST_STATUSES: TaskStatus[] = ["todo", "in_progress", "in_review", "done"];
 
 function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClick: (id: number) => void; projectId: number }) {
   const [sort, setSort]         = useState<{ key: SortKey; dir: SortDir }>({ key: "title", dir: "asc" });
+  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(() => new Set(LIST_STATUSES));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
@@ -946,7 +948,23 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
   const toggleSort = (key: SortKey) =>
     setSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
 
-  const sortedTasks = [...tasks].sort((a, b) => {
+  const toggleStatusFilter = (status: TaskStatus) => {
+    setStatusFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        if (next.size <= 1) return prev;
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+  };
+
+  const statusFilterActive = statusFilter.size < LIST_STATUSES.length;
+  const filteredTasks = tasks.filter(t => statusFilter.has(t.status));
+
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
     let cmp = 0;
     if      (sort.key === "title")    cmp = a.title.localeCompare(b.title);
     else if (sort.key === "status")   cmp = (STATUS_ORDER[a.status] ?? 0)   - (STATUS_ORDER[b.status] ?? 0);
@@ -1020,6 +1038,53 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
 
   return (
     <div className="space-y-2">
+      {/* ── Status filter ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-wrap items-center gap-2 px-1 py-1"
+      >
+        <span className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
+          <Filter className="w-3.5 h-3.5" />
+          Status
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(Object.entries(STATUS_CONFIG) as [TaskStatus, typeof STATUS_CONFIG[string]][]).map(([key, cfg]) => {
+            const on = statusFilter.has(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleStatusFilter(key)}
+                className={clsx(
+                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                  on
+                    ? clsx(cfg.bg, cfg.color, "ring-1 ring-current/20")
+                    : "bg-secondary/40 text-muted-foreground border-border/50 opacity-60 hover:opacity-100"
+                )}
+                aria-pressed={on}
+              >
+                {cfg.label}
+              </button>
+            );
+          })}
+        </div>
+        {statusFilterActive && (
+          <>
+            <span className="text-xs text-muted-foreground">
+              {filteredTasks.length} of {tasks.length} tasks
+            </span>
+            <button
+              type="button"
+              className="text-xs text-primary hover:text-primary/80 transition-colors"
+              onClick={() => setStatusFilter(new Set(LIST_STATUSES))}
+            >
+              Show all
+            </button>
+          </>
+        )}
+      </motion.div>
+
       {/* ── Bulk action bar ── */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-xl">
@@ -1191,7 +1256,7 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
                 </tr>
               );
 
-              const subtaskRows = (isExpanded ? subtasks : []).map((sub, idx) => {
+              const subtaskRows = (isExpanded ? subtasks.filter(s => statusFilter.has(s.status)) : []).map((sub, idx) => {
                 const subOverdue = sub.dueDate && isPast(new Date(sub.dueDate)) && sub.status !== "done";
                 const isLast     = idx === subtasks.length - 1;
                 return (
@@ -1260,7 +1325,13 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
           </tbody>
         </table>
         {sortedTasks.length === 0 && (
-          <div className="py-16 text-center text-muted-foreground text-sm">No tasks yet.</div>
+          <motion.div className="py-16 text-center text-muted-foreground text-sm">
+            {tasks.length === 0
+              ? "No tasks yet."
+              : statusFilterActive
+                ? "No tasks match the selected statuses."
+                : "No tasks yet."}
+          </motion.div>
         )}
       </div>
     </div>
