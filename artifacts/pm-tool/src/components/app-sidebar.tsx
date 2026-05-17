@@ -27,7 +27,7 @@ export function AppSidebar() {
       <SidebarContent>
         <div className="p-6 flex items-center gap-3 border-b border-border/50">
           <img src={logoImg} alt="Market Mind" className="w-8 h-8 rounded-lg flex-shrink-0" />
-          <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
             Market Mind
           </span>
         </div>
