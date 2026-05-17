@@ -101,6 +101,8 @@ type ProjectForm = z.infer<typeof projectSchema>;
 
 const PROJECT_COLORS = ["#13eac1", "#23a7e5", "#003d30", "#0db99a", "#10b981", "#f59e0b", "#ef4444"];
 
+const ALL_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "in_review", "done"];
+
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
@@ -113,6 +115,7 @@ export default function ProjectDetail() {
   const { toast } = useToast();
 
   const [view, setView]                 = useState("board");
+  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(() => new Set(ALL_TASK_STATUSES));
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -589,6 +592,22 @@ export default function ProjectDetail() {
     }
   };
 
+  const toggleStatusFilter = (status: TaskStatus) => {
+    setStatusFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        if (next.size <= 1) return prev;
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+  };
+
+  const filteredTasks = tasks?.filter(t => statusFilter.has(t.status)) ?? [];
+  const visibleStatuses = ALL_TASK_STATUSES.filter(s => statusFilter.has(s));
+
   if (!project || !tasks) return (
     <Layout><div className="flex h-full items-center justify-center">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"/>
@@ -638,16 +657,45 @@ export default function ProjectDetail() {
               <TabsTrigger value="gantt" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><CalendarDays className="w-4 h-4 mr-2"/> Timeline</TabsTrigger>
             </TabsList>
           </Tabs>
+          <TaskStatusFilter
+            statusFilter={statusFilter}
+            onToggle={toggleStatusFilter}
+            onShowAll={() => setStatusFilter(new Set(ALL_TASK_STATUSES))}
+            totalCount={tasks.length}
+            filteredCount={filteredTasks.length}
+          />
         </div>
 
         <div className="flex-1 overflow-hidden relative bg-gradient-to-br from-background to-secondary/10">
           <div className="absolute inset-0 overflow-auto p-8">
-            {view === "board" && <TaskBoard tasks={tasks} projectId={projectId} onTaskClick={setSelectedTaskId} users={users || []} />}
-            {view === "list"  && <TaskList  tasks={tasks} onTaskClick={setSelectedTaskId} projectId={projectId} />}
+            {view === "board" && (
+              <TaskBoard
+                tasks={filteredTasks}
+                visibleStatuses={visibleStatuses}
+                projectId={projectId}
+                onTaskClick={setSelectedTaskId}
+                users={users || []}
+              />
+            )}
+            {view === "list" && (
+              <TaskList
+                tasks={filteredTasks}
+                statusFilter={statusFilter}
+                totalTaskCount={tasks.length}
+                onTaskClick={setSelectedTaskId}
+                projectId={projectId}
+              />
+            )}
             {view === "gantt" && (
-              <div ref={ganttExportRef}>
-                <TaskGantt tasks={tasks} onTaskClick={setSelectedTaskId} projectId={projectId} />
-              </div>
+              <motion.div ref={ganttExportRef}>
+                <TaskGantt
+                  tasks={filteredTasks}
+                  statusFilter={statusFilter}
+                  totalTaskCount={tasks.length}
+                  onTaskClick={setSelectedTaskId}
+                  projectId={projectId}
+                />
+              </motion.div>
             )}
           </div>
         </div>
@@ -778,11 +826,86 @@ export default function ProjectDetail() {
   );
 }
 
+// ─── STATUS FILTER (shared across board / list / gantt) ───────────────────────
+function TaskStatusFilter({
+  statusFilter,
+  onToggle,
+  onShowAll,
+  totalCount,
+  filteredCount,
+}: {
+  statusFilter: Set<TaskStatus>;
+  onToggle: (status: TaskStatus) => void;
+  onShowAll: () => void;
+  totalCount: number;
+  filteredCount: number;
+}) {
+  const statusFilterActive = statusFilter.size < ALL_TASK_STATUSES.length;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-wrap items-center gap-2 mt-3"
+    >
+      <span className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
+        <Filter className="w-3.5 h-3.5" />
+        Status
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {(Object.entries(STATUS_CONFIG) as [TaskStatus, typeof STATUS_CONFIG[string]][]).map(([key, cfg]) => {
+          const on = statusFilter.has(key);
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onToggle(key)}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                on
+                  ? clsx(cfg.bg, cfg.color, "ring-1 ring-current/20")
+                  : "bg-secondary/40 text-muted-foreground border-border/50 opacity-60 hover:opacity-100"
+              )}
+              aria-pressed={on}
+            >
+              {cfg.label}
+            </button>
+          );
+        })}
+      </div>
+      {statusFilterActive && (
+        <>
+          <span className="text-xs text-muted-foreground">
+            {filteredCount} of {totalCount} tasks
+          </span>
+          <button
+            type="button"
+            className="text-xs text-primary hover:text-primary/80 transition-colors"
+            onClick={onShowAll}
+          >
+            Show all
+          </button>
+        </>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── KANBAN BOARD ──────────────────────────────────────────────────────────────
-function TaskBoard({ tasks, projectId, onTaskClick, users }: { tasks: Task[]; projectId: number; onTaskClick: (id: number) => void; users: User[] }) {
+function TaskBoard({
+  tasks,
+  visibleStatuses,
+  projectId,
+  onTaskClick,
+  users,
+}: {
+  tasks: Task[];
+  visibleStatuses: TaskStatus[];
+  projectId: number;
+  onTaskClick: (id: number) => void;
+  users: User[];
+}) {
   const updateMutation = useUpdateTask();
   const queryClient    = useQueryClient();
-  const columns = ["todo", "in_progress", "in_review", "done"];
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
@@ -797,7 +920,7 @@ function TaskBoard({ tasks, projectId, onTaskClick, users }: { tasks: Task[]; pr
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex gap-6 items-start min-w-max pb-8">
-        {columns.map((colId) => {
+        {visibleStatuses.map((colId) => {
           const colTasks = tasks.filter(t => t.status === colId).sort((a, b) => a.position - b.position);
           const config   = STATUS_CONFIG[colId];
           return (
@@ -911,11 +1034,20 @@ type SortKey = "title" | "status" | "priority" | "dueDate" | "assignee";
 type SortDir = "asc" | "desc";
 const PRIORITY_ORDER: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4 };
 const STATUS_ORDER:   Record<string, number> = { todo: 1, in_progress: 2, in_review: 3, done: 4 };
-const LIST_STATUSES: TaskStatus[] = ["todo", "in_progress", "in_review", "done"];
-
-function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClick: (id: number) => void; projectId: number }) {
+function TaskList({
+  tasks,
+  statusFilter,
+  totalTaskCount,
+  onTaskClick,
+  projectId,
+}: {
+  tasks: Task[];
+  statusFilter: Set<TaskStatus>;
+  totalTaskCount: number;
+  onTaskClick: (id: number) => void;
+  projectId: number;
+}) {
   const [sort, setSort]         = useState<{ key: SortKey; dir: SortDir }>({ key: "title", dir: "asc" });
-  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(() => new Set(LIST_STATUSES));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
@@ -948,23 +1080,9 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
   const toggleSort = (key: SortKey) =>
     setSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
 
-  const toggleStatusFilter = (status: TaskStatus) => {
-    setStatusFilter(prev => {
-      const next = new Set(prev);
-      if (next.has(status)) {
-        if (next.size <= 1) return prev;
-        next.delete(status);
-      } else {
-        next.add(status);
-      }
-      return next;
-    });
-  };
+  const statusFilterActive = statusFilter.size < ALL_TASK_STATUSES.length;
 
-  const statusFilterActive = statusFilter.size < LIST_STATUSES.length;
-  const filteredTasks = tasks.filter(t => statusFilter.has(t.status));
-
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
+  const sortedTasks = [...tasks].sort((a, b) => {
     let cmp = 0;
     if      (sort.key === "title")    cmp = a.title.localeCompare(b.title);
     else if (sort.key === "status")   cmp = (STATUS_ORDER[a.status] ?? 0)   - (STATUS_ORDER[b.status] ?? 0);
@@ -1038,52 +1156,6 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
 
   return (
     <div className="space-y-2">
-      {/* ── Status filter ── */}
-      <motion.div
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap items-center gap-2 px-1 py-1"
-      >
-        <span className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
-          <Filter className="w-3.5 h-3.5" />
-          Status
-        </span>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(Object.entries(STATUS_CONFIG) as [TaskStatus, typeof STATUS_CONFIG[string]][]).map(([key, cfg]) => {
-            const on = statusFilter.has(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleStatusFilter(key)}
-                className={clsx(
-                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
-                  on
-                    ? clsx(cfg.bg, cfg.color, "ring-1 ring-current/20")
-                    : "bg-secondary/40 text-muted-foreground border-border/50 opacity-60 hover:opacity-100"
-                )}
-                aria-pressed={on}
-              >
-                {cfg.label}
-              </button>
-            );
-          })}
-        </div>
-        {statusFilterActive && (
-          <>
-            <span className="text-xs text-muted-foreground">
-              {filteredTasks.length} of {tasks.length} tasks
-            </span>
-            <button
-              type="button"
-              className="text-xs text-primary hover:text-primary/80 transition-colors"
-              onClick={() => setStatusFilter(new Set(LIST_STATUSES))}
-            >
-              Show all
-            </button>
-          </>
-        )}
-      </motion.div>
 
       {/* ── Bulk action bar ── */}
       {selected.size > 0 && (
@@ -1326,7 +1398,7 @@ function TaskList({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClic
         </table>
         {sortedTasks.length === 0 && (
           <motion.div className="py-16 text-center text-muted-foreground text-sm">
-            {tasks.length === 0
+            {totalTaskCount === 0
               ? "No tasks yet."
               : statusFilterActive
                 ? "No tasks match the selected statuses."
@@ -1358,7 +1430,19 @@ type GanttRow =
   | { isSubtask: false; task: Task }
   | { isSubtask: true;  task: Task; parentId: number };
 
-function TaskGantt({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskClick: (id: number) => void; projectId: number }) {
+function TaskGantt({
+  tasks,
+  statusFilter,
+  totalTaskCount,
+  onTaskClick,
+  projectId,
+}: {
+  tasks: Task[];
+  statusFilter: Set<TaskStatus>;
+  totalTaskCount: number;
+  onTaskClick: (id: number) => void;
+  projectId: number;
+}) {
   // ── hooks ──────────────────────────────────────────────────────────────────
   const [dragMode, setDragMode]       = useState<string | null>(null);
   const [preview, setPreview]         = useState<Map<number, { start: string; end: string }>>(new Map());
@@ -1484,7 +1568,7 @@ function TaskGantt({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskCli
   for (const task of validTasks) {
     allRows.push({ isSubtask: false, task });
     if (expandedSet.has(task.id)) {
-      for (const sub of subtasksByTask.get(task.id) ?? []) {
+      for (const sub of (subtasksByTask.get(task.id) ?? []).filter(s => statusFilter.has(s.status))) {
         allRows.push({ isSubtask: true, task: sub, parentId: task.id });
       }
     }
@@ -1497,9 +1581,13 @@ function TaskGantt({ tasks, onTaskClick, projectId }: { tasks: Task[]; onTaskCli
     for (const s of subs) newSubParent.set(s.id, pid);
   subParentRef.current = newSubParent;
 
+  const statusFilterActive = statusFilter.size < ALL_TASK_STATUSES.length;
+
   if (validTasks.length === 0) return (
     <div className="text-center py-20 text-muted-foreground">
-      No tasks with start + due dates yet. Set dates on any task to see it here.
+      {totalTaskCount > 0 && statusFilterActive
+        ? "No dated tasks match the selected statuses."
+        : "No tasks with start + due dates yet. Set dates on any task to see it here."}
     </div>
   );
 
