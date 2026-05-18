@@ -1,6 +1,7 @@
 package com.marketmind.pmapi.repository;
 
 import com.marketmind.pmapi.model.User;
+import com.marketmind.pmapi.util.IsoTimestamps;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -31,7 +32,7 @@ public class UserRepository {
       u.email = rs.getString("email");
       u.avatarUrl = rs.getString("avatar_url");
       u.role = rs.getString("role");
-      u.createdAt = rs.getTimestamp("created_at").toInstant().toString();
+      u.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
       return u;
     }
   };

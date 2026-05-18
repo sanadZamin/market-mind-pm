@@ -2,6 +2,7 @@ package com.marketmind.pmapi.service;
 
 import com.marketmind.pmapi.model.Task;
 import com.marketmind.pmapi.model.User;
+import com.marketmind.pmapi.util.IsoTimestamps;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,7 @@ public class TaskEnrichmentService {
     u.email = rs.getString("email");
     u.avatarUrl = rs.getString("avatar_url");
     u.role = rs.getString("role");
-    u.createdAt = rs.getTimestamp("created_at").toInstant().toString();
+    u.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
     return u;
   };
 

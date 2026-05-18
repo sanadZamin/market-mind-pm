@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketmind.pmapi.model.DependsOnTask;
 import com.marketmind.pmapi.model.Task;
 import com.marketmind.pmapi.model.TaskDependency;
+import com.marketmind.pmapi.util.IsoTimestamps;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -61,8 +62,8 @@ public class TaskRepository {
       t.blockedByIds = new ArrayList<>();
       t.blockingIds = new ArrayList<>();
 
-      t.createdAt = rs.getTimestamp("created_at").toInstant().toString();
-      t.updatedAt = rs.getTimestamp("updated_at").toInstant().toString();
+      t.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
+      t.updatedAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("updated_at"));
       return t;
     }
   };
@@ -249,7 +250,7 @@ public class TaskRepository {
           if (rs.getObject("dep_id") != null) {
             d.dependsOnTask = new DependsOnTask(rs.getInt("dep_id"), rs.getString("dep_title"), rs.getString("dep_status"));
           }
-          d.createdAt = rs.getTimestamp("created_at").toInstant().toString();
+          d.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
           return d;
         },
         taskId
@@ -264,7 +265,7 @@ public class TaskRepository {
           d.id = rs.getInt("id");
           d.taskId = rs.getInt("task_id");
           d.dependsOnTaskId = rs.getInt("depends_on_task_id");
-          d.createdAt = rs.getTimestamp("created_at").toInstant().toString();
+          d.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
           return d;
         },
         taskId,

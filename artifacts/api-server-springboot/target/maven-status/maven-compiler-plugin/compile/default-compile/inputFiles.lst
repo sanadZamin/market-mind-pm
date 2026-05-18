@@ -2,6 +2,7 @@
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/BearerAuthInterceptor.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/DataSourceConfig.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/DefaultUserSeedRunner.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/JacksonConfig.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/MailHostPresentCondition.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/OptionalMailSenderConfiguration.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/config/PasswordEncoderConfig.java
@@ -31,9 +32,11 @@
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/repository/ProjectRepository.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/repository/TaskRepository.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/repository/UserRepository.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/DelayedTaskDigestScheduler.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/OllamaClient.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskChangeDetector.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskEnrichmentService.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskUpdateChangeDescription.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TeamUpdateEmailDedupeService.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TeamUpdateEmailService.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/util/IsoTimestamps.java

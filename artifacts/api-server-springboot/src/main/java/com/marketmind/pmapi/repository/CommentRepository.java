@@ -2,6 +2,7 @@ package com.marketmind.pmapi.repository;
 
 import com.marketmind.pmapi.model.Comment;
 import com.marketmind.pmapi.model.User;
+import com.marketmind.pmapi.util.IsoTimestamps;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -35,14 +36,14 @@ public class CommentRepository {
       u.email = rs.getString("u_email");
       u.avatarUrl = rs.getString("u_avatar_url");
       u.role = rs.getString("u_role");
-      u.createdAt = rs.getTimestamp("u_created_at").toInstant().toString();
+      u.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("u_created_at"));
       c.user = u;
     } else {
       c.user = null;
     }
 
-    c.createdAt = rs.getTimestamp("created_at").toInstant().toString();
-    c.updatedAt = rs.getTimestamp("updated_at").toInstant().toString();
+    c.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
+    c.updatedAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("updated_at"));
     return c;
   };
 

@@ -1,6 +1,7 @@
 package com.marketmind.pmapi.repository;
 
 import com.marketmind.pmapi.model.Project;
+import com.marketmind.pmapi.util.IsoTimestamps;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -26,8 +27,8 @@ public class ProjectRepository {
     p.ownerId = rs.getInt("owner_id");
     p.startDate = rs.getString("start_date");
     p.endDate = rs.getString("end_date");
-    p.createdAt = rs.getTimestamp("created_at").toInstant().toString();
-    p.updatedAt = rs.getTimestamp("updated_at").toInstant().toString();
+    p.createdAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("created_at"));
+    p.updatedAt = IsoTimestamps.fromSqlTimestamp(rs.getTimestamp("updated_at"));
     // counts are set by enrichment
     p.taskCount = 0;
     p.completedTaskCount = 0;
