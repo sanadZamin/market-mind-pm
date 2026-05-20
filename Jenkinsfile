@@ -30,7 +30,7 @@ pipeline {
         booleanParam(name: 'BUILD_WEB', defaultValue: true, description: 'Also build and push the web (Dockerfile.web) image')
         booleanParam(name: 'PUSH_LATEST', defaultValue: true, description: 'Also tag and push :latest on each built image')
         string(name: 'VITE_PM_BASE_PATH', defaultValue: '/pm', description: 'SPA base path baked into web build (Dockerfile.web BASE_PATH)')
-        string(name: 'DEPLOY_HOST', defaultValue: 'http://149.102.140.178:88/', description: 'Deploy target host (use 172.17.0.1 if Jenkins runs on same machine in Docker)')
+        string(name: 'DEPLOY_HOST', defaultValue: '149.102.140.178', description: 'Deploy target host (use 172.17.0.1 if Jenkins runs on same machine in Docker)')
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user on deploy host')
         string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/market-mind-pm', description: 'Directory on host containing production docker-compose.yml')
         string(name: 'COMPOSE_SERVICES', defaultValue: 'springapi web', description: 'Space-separated compose service names to pull/restart (e.g. springapi or springapi web nginx)')
@@ -117,7 +117,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''#!/usr/bin/env bash
-                    set -euo pipefail
+                    set -eo pipefail
+                    COMPOSE_SERVICES="${COMPOSE_SERVICES:-springapi web}"
                     if [ ! -f "${DEPLOY_SSH_KEY}" ]; then
                       echo "ERROR: SSH key not found at ${DEPLOY_SSH_KEY} (mount host key in Jenkins compose)."
                       exit 1
@@ -128,16 +129,17 @@ pipeline {
                     chmod 600 "${SSH_KEY}"
                     ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=no -o BatchMode=yes \
                       "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                      "bash -lc 'set -euo pipefail
-                       cd \"${DEPLOY_DIR}\"
-                       export IMAGE_TAG=\"${IMAGE_TAG}\"
-                       export DOCKER_REPO_API=\"${DOCKER_REPO_API}\"
-                       export DOCKER_REPO_WEB=\"${DOCKER_REPO_WEB}\"
-                       for svc in ${COMPOSE_SERVICES}; do
-                         docker compose pull \"\$svc\"
-                         docker compose up -d --no-deps \"\$svc\"
-                       done
-                       docker compose ps ${COMPOSE_SERVICES}'"
+                      "DEPLOY_DIR=${DEPLOY_DIR@Q} IMAGE_TAG=${IMAGE_TAG@Q} DOCKER_REPO_API=${DOCKER_REPO_API@Q} DOCKER_REPO_WEB=${DOCKER_REPO_WEB@Q} COMPOSE_SERVICES=${COMPOSE_SERVICES@Q} bash -s" <<'REMOTE_EOF'
+set -eo pipefail
+cd "$DEPLOY_DIR"
+export IMAGE_TAG DOCKER_REPO_API DOCKER_REPO_WEB
+for svc in $COMPOSE_SERVICES; do
+  echo "Deploying service: $svc"
+  docker compose pull "$svc"
+  docker compose up -d --no-deps "$svc"
+done
+docker compose ps $COMPOSE_SERVICES
+REMOTE_EOF
                 '''
             }
         }
