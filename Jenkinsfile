@@ -129,7 +129,13 @@ pipeline {
                     chmod 600 "${SSH_KEY}"
                     ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=no -o BatchMode=yes \
                       "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                      "DEPLOY_DIR=${DEPLOY_DIR@Q} IMAGE_TAG=${IMAGE_TAG@Q} DOCKER_REPO_API=${DOCKER_REPO_API@Q} DOCKER_REPO_WEB=${DOCKER_REPO_WEB@Q} COMPOSE_SERVICES=${COMPOSE_SERVICES@Q} bash -s" <<'REMOTE_EOF'
+                      env \
+                        "DEPLOY_DIR=${DEPLOY_DIR}" \
+                        "IMAGE_TAG=${IMAGE_TAG}" \
+                        "DOCKER_REPO_API=${DOCKER_REPO_API}" \
+                        "DOCKER_REPO_WEB=${DOCKER_REPO_WEB}" \
+                        "COMPOSE_SERVICES=${COMPOSE_SERVICES}" \
+                      bash -s <<'REMOTE_EOF'
 set -eo pipefail
 cd "$DEPLOY_DIR"
 export IMAGE_TAG DOCKER_REPO_API DOCKER_REPO_WEB
