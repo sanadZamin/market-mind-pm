@@ -1,0 +1,27 @@
+# Example: run Jenkins with host Docker CLI + socket (Docker Engine 29+ needs client API ≥ 1.44).
+# Adjust paths and image to match your server.
+#
+#   docker compose -f deploy/jenkins-docker-compose.example.yml up -d
+#
+# Mount your deploy key:
+#   - /path/on/host/id_deploy:/var/jenkins_home/.ssh/id_deploy:ro
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Host Docker socket + CLI (use same major version as host engine, e.g. docker 29.x)
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+      # Optional: deploy SSH key
+      # - /root/.ssh/id_deploy:/var/jenkins_home/.ssh/id_deploy:ro
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+
+volumes:
+  jenkins_home:
