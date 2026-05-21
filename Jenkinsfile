@@ -202,10 +202,10 @@ for svc in \$(echo "\$COMPOSE_SERVICES" | tr ',' ' '); do
   svc=\$(echo "\$svc" | xargs)
   [ -z "\$svc" ] && continue
   echo "Deploying service: \$svc"
-  docker compose pull "\$svc"
-  docker compose up -d --no-deps "\$svc"
+  docker-compose pull "\$svc"
+  docker-compose up -d --no-deps "\$svc"
 done
-docker compose ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
+docker-compose ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
 REMOTE_EOF
                         '''
                     }
