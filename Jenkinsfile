@@ -127,22 +127,47 @@ pipeline {
                             set -eo pipefail
                             COMPOSE_SERVICES="${COMPOSE_SERVICES:-springapi web}"
 
+                            print_deploy_pubkey() {
+                              echo "----- Add ONE of these lines to ${DEPLOY_USER}@${DEPLOY_HOST} ~/.ssh/authorized_keys -----"
+                              if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+                                ssh-add -L 2>/dev/null || true
+                              elif [ -n "${SSH_KEY_FILE:-}" ] && [ -f "${SSH_KEY_FILE}" ]; then
+                                ssh-keygen -y -f "${SSH_KEY_FILE}" 2>/dev/null || true
+                              fi
+                              echo "----- end -----"
+                            }
+
                             SSH_CMD=(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
+                            SSH_KEY_FILE=""
                             if [ -n "${SSH_AUTH_SOCK:-}" ] && ssh-add -l >/dev/null 2>&1; then
                               echo "SSH auth: Jenkins ssh-agent (credential)"
-                              echo "Loaded keys:"
                               ssh-add -l || true
                             elif [ -f "${DEPLOY_SSH_KEY}" ]; then
-                              echo "SSH auth: key file ${DEPLOY_SSH_KEY}"
+                              if [ -d "${DEPLOY_SSH_KEY}" ]; then
+                                echo "ERROR: ${DEPLOY_SSH_KEY} is a directory. Mount the private key FILE:"
+                                echo "  /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro"
+                                exit 1
+                              fi
+                              SSH_KEY_FILE="${DEPLOY_SSH_KEY}"
+                              echo "SSH auth: key file ${SSH_KEY_FILE}"
+                              head -1 "${SSH_KEY_FILE}" | grep -qE 'PRIVATE KEY' || {
+                                echo "ERROR: ${SSH_KEY_FILE} does not look like an OpenSSH private key."
+                                exit 1
+                              }
+                              chmod 600 "${SSH_KEY_FILE}" 2>/dev/null || true
                               SSH_KEY="$(mktemp)"
                               trap 'rm -f "${SSH_KEY}"' EXIT
-                              cp "${DEPLOY_SSH_KEY}" "${SSH_KEY}"
+                              cp "${SSH_KEY_FILE}" "${SSH_KEY}"
                               chmod 600 "${SSH_KEY}"
                               SSH_CMD+=(-i "${SSH_KEY}")
+                              echo "Key fingerprint:"
                               ssh-keygen -lf "${SSH_KEY}" || true
+                              echo "Public key for authorized_keys:"
+                              ssh-keygen -y -f "${SSH_KEY}" || true
                             else
                               echo "ERROR: No ssh-agent key and no file at ${DEPLOY_SSH_KEY}"
-                              echo "Fix: add Jenkins credential (DEPLOY_SSH_CREDENTIALS_ID) or mount private key in Jenkins container."
+                              echo "Mount host key: /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro"
+                              echo "Or set Jenkins credential DEPLOY_SSH_CREDENTIALS_ID (e.g. deploy-ssh-key)."
                               exit 1
                             fi
 
@@ -150,16 +175,15 @@ pipeline {
                             if ! "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" echo "SSH OK"; then
                               echo ""
                               echo "ERROR: Permission denied (publickey)."
-                              echo "Add the Jenkins deploy PUBLIC key to the server:"
-                              echo "  ${DEPLOY_USER}@${DEPLOY_HOST}:~/.ssh/authorized_keys"
-                              if [ -n "${SSH_AUTH_SOCK:-}" ]; then
-                                echo "Public key from agent (ssh-add -L):"
-                                ssh-add -L 2>/dev/null || true
-                              elif [ -n "${SSH_KEY:-}" ] && [ -f "${SSH_KEY}.pub" ]; then
-                                cat "${SSH_KEY}.pub" || true
-                              else
-                                echo "  ssh-keygen -y -f ${DEPLOY_SSH_KEY}   # on Jenkins host, if you have the private key"
-                              fi
+                              print_deploy_pubkey
+                              echo ""
+                              echo "On deploy host (as root), run:"
+                              echo "  mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+                              echo "  echo '<paste public key line above>' >> ~/.ssh/authorized_keys"
+                              echo "  chmod 600 ~/.ssh/authorized_keys"
+                              echo ""
+                              echo "Verify from Jenkins container:"
+                              echo "  docker exec -it jenkins_sandbox ssh -i ${DEPLOY_SSH_KEY} -o BatchMode=yes ${DEPLOY_USER}@${DEPLOY_HOST} echo OK"
                               exit 255
                             fi
 
