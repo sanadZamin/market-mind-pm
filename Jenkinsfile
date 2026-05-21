@@ -36,8 +36,8 @@ pipeline {
         string(name: 'VITE_PM_BASE_PATH', defaultValue: '/pm', description: 'SPA base path baked into web build (Dockerfile.web BASE_PATH)')
         string(name: 'DEPLOY_HOST', defaultValue: '149.102.140.178', description: 'Deploy target host (use 172.17.0.1 if Jenkins runs on same machine in Docker)')
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user on deploy host')
-        string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/market-mind-pm', description: 'Directory on host containing production docker-compose.yml')
-        string(name: 'COMPOSE_SERVICES', defaultValue: 'springapi web', description: 'Space-separated compose service names to pull/restart (e.g. springapi or springapi web nginx)')
+        string(name: 'DEPLOY_DIR', defaultValue: '~/dev/frontend', description: 'Directory on deploy host with production docker-compose.yml (e.g. ~/dev/frontend for root)')
+        string(name: 'COMPOSE_SERVICES', defaultValue: 'springapi,web', description: 'Compose services to pull/restart — comma-separated (springapi,web) or space-separated (springapi web)')
         string(name: 'DEPLOY_SSH_CREDENTIALS_ID', defaultValue: '', description: 'Jenkins SSH credential ID (SSH Username with private key). Leave empty to use mounted DEPLOY_SSH_KEY file (see deploy/jenkins-docker-compose.example.yml).')
         string(name: 'DEPLOY_SSH_KEY', defaultValue: '/var/jenkins_home/.ssh/id_deploy', description: 'Deploy private key path (only if DEPLOY_SSH_CREDENTIALS_ID is empty)')
     }
@@ -187,23 +187,25 @@ pipeline {
                               exit 255
                             fi
 
-                            "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                              env \
-                                "DEPLOY_DIR=${DEPLOY_DIR}" \
-                                "IMAGE_TAG=${IMAGE_TAG}" \
-                                "DOCKER_REPO_API=${DOCKER_REPO_API}" \
-                                "DOCKER_REPO_WEB=${DOCKER_REPO_WEB}" \
-                                "COMPOSE_SERVICES=${COMPOSE_SERVICES}" \
-                              bash -s <<'REMOTE_EOF'
+                            # Do not use `env KEY=a b bash` — spaces in COMPOSE_SERVICES make env run `b` as a command.
+                            "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<REMOTE_EOF
 set -eo pipefail
-cd "$DEPLOY_DIR"
-export IMAGE_TAG DOCKER_REPO_API DOCKER_REPO_WEB
-for svc in $COMPOSE_SERVICES; do
-  echo "Deploying service: $svc"
-  docker compose pull "$svc"
-  docker compose up -d --no-deps "$svc"
+export DEPLOY_DIR="${DEPLOY_DIR}"
+export IMAGE_TAG="${IMAGE_TAG}"
+export DOCKER_REPO_API="${DOCKER_REPO_API}"
+export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
+export COMPOSE_SERVICES="${COMPOSE_SERVICES}"
+_deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
+[ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
+cd "\$_deploy_dir"
+for svc in \$(echo "\$COMPOSE_SERVICES" | tr ',' ' '); do
+  svc=\$(echo "\$svc" | xargs)
+  [ -z "\$svc" ] && continue
+  echo "Deploying service: \$svc"
+  docker compose pull "\$svc"
+  docker compose up -d --no-deps "\$svc"
 done
-docker compose ps $COMPOSE_SERVICES
+docker compose ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
 REMOTE_EOF
                         '''
                     }
