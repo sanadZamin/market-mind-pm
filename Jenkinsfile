@@ -4,7 +4,11 @@
  * Jenkins credentials (Manage Jenkins → Credentials → System → Global):
  *   - dockerhub-deploy   (Username with password) — Docker Hub user + access token (Read & Write)
  *
- * Deploy SSH: private key mounted in Jenkins (default /var/jenkins_home/.ssh/id_deploy).
+ * Deploy SSH (pick one):
+ *   A) Jenkins credential "SSH Username with private key" — set DEPLOY_SSH_CREDENTIALS_ID (default deploy-ssh-key)
+ *   B) Private key file mounted in Jenkins — set DEPLOY_SSH_CREDENTIALS_ID empty, use DEPLOY_SSH_KEY path
+ *
+ * On deploy host, the matching *public* key must be in ~/.ssh/authorized_keys for DEPLOY_USER.
  *
  * Jenkins container needs a recent Docker CLI (API ≥ 1.44 for Docker Engine 29+) plus the
  * host socket. See deploy/jenkins-docker-compose.example.yml.
@@ -34,7 +38,8 @@ pipeline {
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user on deploy host')
         string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/market-mind-pm', description: 'Directory on host containing production docker-compose.yml')
         string(name: 'COMPOSE_SERVICES', defaultValue: 'springapi web', description: 'Space-separated compose service names to pull/restart (e.g. springapi or springapi web nginx)')
-        string(name: 'DEPLOY_SSH_KEY', defaultValue: '/var/jenkins_home/.ssh/id_deploy', description: 'Path to deploy private key inside Jenkins container')
+        string(name: 'DEPLOY_SSH_CREDENTIALS_ID', defaultValue: '', description: 'Jenkins SSH credential ID (SSH Username with private key). Leave empty to use mounted DEPLOY_SSH_KEY file (see deploy/jenkins-docker-compose.example.yml).')
+        string(name: 'DEPLOY_SSH_KEY', defaultValue: '/var/jenkins_home/.ssh/id_deploy', description: 'Deploy private key path (only if DEPLOY_SSH_CREDENTIALS_ID is empty)')
     }
 
     environment {
@@ -116,26 +121,56 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -eo pipefail
-                    COMPOSE_SERVICES="${COMPOSE_SERVICES:-springapi web}"
-                    if [ ! -f "${DEPLOY_SSH_KEY}" ]; then
-                      echo "ERROR: SSH key not found at ${DEPLOY_SSH_KEY} (mount host key in Jenkins compose)."
-                      exit 1
-                    fi
-                    SSH_KEY="$(mktemp)"
-                    trap 'rm -f "${SSH_KEY}"' EXIT
-                    cp "${DEPLOY_SSH_KEY}" "${SSH_KEY}"
-                    chmod 600 "${SSH_KEY}"
-                    ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=no -o BatchMode=yes \
-                      "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                      env \
-                        "DEPLOY_DIR=${DEPLOY_DIR}" \
-                        "IMAGE_TAG=${IMAGE_TAG}" \
-                        "DOCKER_REPO_API=${DOCKER_REPO_API}" \
-                        "DOCKER_REPO_WEB=${DOCKER_REPO_WEB}" \
-                        "COMPOSE_SERVICES=${COMPOSE_SERVICES}" \
-                      bash -s <<'REMOTE_EOF'
+                script {
+                    def deployBody = {
+                        sh '''#!/usr/bin/env bash
+                            set -eo pipefail
+                            COMPOSE_SERVICES="${COMPOSE_SERVICES:-springapi web}"
+
+                            SSH_CMD=(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
+                            if [ -n "${SSH_AUTH_SOCK:-}" ] && ssh-add -l >/dev/null 2>&1; then
+                              echo "SSH auth: Jenkins ssh-agent (credential)"
+                              echo "Loaded keys:"
+                              ssh-add -l || true
+                            elif [ -f "${DEPLOY_SSH_KEY}" ]; then
+                              echo "SSH auth: key file ${DEPLOY_SSH_KEY}"
+                              SSH_KEY="$(mktemp)"
+                              trap 'rm -f "${SSH_KEY}"' EXIT
+                              cp "${DEPLOY_SSH_KEY}" "${SSH_KEY}"
+                              chmod 600 "${SSH_KEY}"
+                              SSH_CMD+=(-i "${SSH_KEY}")
+                              ssh-keygen -lf "${SSH_KEY}" || true
+                            else
+                              echo "ERROR: No ssh-agent key and no file at ${DEPLOY_SSH_KEY}"
+                              echo "Fix: add Jenkins credential (DEPLOY_SSH_CREDENTIALS_ID) or mount private key in Jenkins container."
+                              exit 1
+                            fi
+
+                            echo "Preflight: ${DEPLOY_USER}@${DEPLOY_HOST}"
+                            if ! "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" echo "SSH OK"; then
+                              echo ""
+                              echo "ERROR: Permission denied (publickey)."
+                              echo "Add the Jenkins deploy PUBLIC key to the server:"
+                              echo "  ${DEPLOY_USER}@${DEPLOY_HOST}:~/.ssh/authorized_keys"
+                              if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+                                echo "Public key from agent (ssh-add -L):"
+                                ssh-add -L 2>/dev/null || true
+                              elif [ -n "${SSH_KEY:-}" ] && [ -f "${SSH_KEY}.pub" ]; then
+                                cat "${SSH_KEY}.pub" || true
+                              else
+                                echo "  ssh-keygen -y -f ${DEPLOY_SSH_KEY}   # on Jenkins host, if you have the private key"
+                              fi
+                              exit 255
+                            fi
+
+                            "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                              env \
+                                "DEPLOY_DIR=${DEPLOY_DIR}" \
+                                "IMAGE_TAG=${IMAGE_TAG}" \
+                                "DOCKER_REPO_API=${DOCKER_REPO_API}" \
+                                "DOCKER_REPO_WEB=${DOCKER_REPO_WEB}" \
+                                "COMPOSE_SERVICES=${COMPOSE_SERVICES}" \
+                              bash -s <<'REMOTE_EOF'
 set -eo pipefail
 cd "$DEPLOY_DIR"
 export IMAGE_TAG DOCKER_REPO_API DOCKER_REPO_WEB
@@ -146,7 +181,17 @@ for svc in $COMPOSE_SERVICES; do
 done
 docker compose ps $COMPOSE_SERVICES
 REMOTE_EOF
-                '''
+                        '''
+                    }
+                    def credId = params.DEPLOY_SSH_CREDENTIALS_ID?.trim()
+                    if (credId) {
+                        sshagent(credentials: [credId]) {
+                            deployBody()
+                        }
+                    } else {
+                        deployBody()
+                    }
+                }
             }
         }
     }
@@ -156,7 +201,7 @@ REMOTE_EOF
             echo "Deployed API ${IMAGE_API} to ${DEPLOY_HOST}:${DEPLOY_DIR}${BUILD_WEB == 'true' ? ' (web ' + IMAGE_WEB + ')' : ''}"
         }
         failure {
-            echo 'Build or deploy failed — check: Docker CLI API ≥1.44, dockerhub-deploy credential, SSH key mount, authorized_keys, compose path, IMAGE_TAG in compose.'
+            echo 'Build or deploy failed — check: Docker CLI API ≥1.44, dockerhub-deploy, SSH credential/key + authorized_keys on deploy host, compose path, IMAGE_TAG in compose.'
         }
     }
 }

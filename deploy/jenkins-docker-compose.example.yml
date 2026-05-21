@@ -1,27 +1,42 @@
-# Example: run Jenkins with host Docker CLI + socket (Docker Engine 29+ needs client API ≥ 1.44).
-# Adjust paths and image to match your server.
+# Jenkins sandbox — matches typical server layout (Docker socket + deploy key file mount).
+#
+# Host prep:
+#   chmod 600 /root/jenkins-deploy          # private key, OpenSSH format
+#   ssh-keygen -y -f /root/jenkins-deploy   # copy output → deploy server authorized_keys
 #
 #   docker compose -f deploy/jenkins-docker-compose.example.yml up -d
 #
-# Mount your deploy key:
-#   - /path/on/host/id_deploy:/var/jenkins_home/.ssh/id_deploy:ro
+# Pipeline: leave DEPLOY_SSH_CREDENTIALS_ID empty; uses /var/jenkins_home/.ssh/id_deploy
+
+version: "3.9"
 
 services:
   jenkins:
     image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins_sandbox
+    privileged: true
     user: root
     ports:
       - "8080:8080"
       - "50000:50000"
     volumes:
-      - jenkins_home:/var/jenkins_home
-      # Host Docker socket + CLI (use same major version as host engine, e.g. docker 29.x)
+      - ./jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
+      # Private key FILE on host → path inside container (not a directory)
+      - /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro
       - /usr/bin/docker:/usr/bin/docker:ro
-      # Optional: deploy SSH key
-      # - /root/.ssh/id_deploy:/var/jenkins_home/.ssh/id_deploy:ro
+      # buildx / compose plugin (paths vary; omit lines that don't exist on your host)
+      - /usr/libexec/docker/cli-plugins:/usr/libexec/docker/cli-plugins:ro
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
 
-volumes:
-  jenkins_home:
+  # Optional inbound agent for Jenkins UI ("Set up an agent") — NOT used for Deploy SSH to production.
+  agent:
+    image: jenkins/ssh-agent:jdk11
+    container_name: jenkins_sandbox_agent
+    privileged: true
+    user: root
+    expose:
+      - "22"
+    environment:
+      - JENKINS_AGENT_SSH_PUBKEY=${JENKINS_AGENT_SSH_PUBLIC_KEY:-}
