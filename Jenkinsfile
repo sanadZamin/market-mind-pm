@@ -36,7 +36,8 @@ pipeline {
         string(name: 'VITE_PM_BASE_PATH', defaultValue: '/pm', description: 'SPA base path baked into web build (Dockerfile.web BASE_PATH)')
         string(name: 'DEPLOY_HOST', defaultValue: '149.102.140.178', description: 'Deploy target host (use 172.17.0.1 if Jenkins runs on same machine in Docker)')
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user on deploy host')
-        string(name: 'DEPLOY_DIR', defaultValue: '~/dev/frontend', description: 'Directory on deploy host with production docker-compose.yml (e.g. ~/dev/frontend for root)')
+        string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/frontend', description: 'Directory on deploy host with production docker-compose.yml (e.g. ~/dev/frontend for root)')
+        string(name: 'COMPOSE_FILE', defaultValue: 'docker-compose.yaml', description: 'Compose file name inside DEPLOY_DIR (see deploy/docker-compose.prod.example.yml)')
         string(name: 'COMPOSE_SERVICES', defaultValue: 'springapi,web', description: 'Compose services to pull/restart — comma-separated (springapi,web) or space-separated (springapi web)')
         string(name: 'DEPLOY_SSH_CREDENTIALS_ID', defaultValue: '', description: 'Jenkins SSH credential ID (SSH Username with private key). Leave empty to use mounted DEPLOY_SSH_KEY file (see deploy/jenkins-docker-compose.example.yml).')
         string(name: 'DEPLOY_SSH_KEY', defaultValue: '/var/jenkins_home/.ssh/id_deploy', description: 'Deploy private key path (only if DEPLOY_SSH_CREDENTIALS_ID is empty)')
@@ -54,6 +55,7 @@ pipeline {
         DEPLOY_HOST = "${params.DEPLOY_HOST}"
         DEPLOY_USER = "${params.DEPLOY_USER}"
         DEPLOY_DIR = "${params.DEPLOY_DIR}"
+        COMPOSE_FILE = "${params.COMPOSE_FILE}"
         COMPOSE_SERVICES = "${params.COMPOSE_SERVICES}"
         DEPLOY_SSH_KEY = "${params.DEPLOY_SSH_KEY}"
     }
@@ -195,17 +197,32 @@ export IMAGE_TAG="${IMAGE_TAG}"
 export DOCKER_REPO_API="${DOCKER_REPO_API}"
 export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
 export COMPOSE_SERVICES="${COMPOSE_SERVICES}"
+export COMPOSE_FILE="${COMPOSE_FILE}"
 _deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
 [ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
+echo "Deploy dir: \$_deploy_dir"
+if [ ! -d "\$_deploy_dir" ]; then
+  echo "ERROR: deploy directory does not exist: \$_deploy_dir"
+  echo "Create it and install compose — see deploy/README.md"
+  exit 1
+fi
 cd "\$_deploy_dir"
+if [ ! -f "\$COMPOSE_FILE" ]; then
+  echo "ERROR: missing compose file: \$_deploy_dir/\$COMPOSE_FILE"
+  echo "Contents of \$_deploy_dir:"
+  ls -la "\$_deploy_dir" || true
+  echo ""
+  echo "One-time on deploy host: copy deploy/docker-compose.prod.example.yml to \$_deploy_dir/\$COMPOSE_FILE and add .env (PGPASSWORD, etc.)"
+  exit 1
+fi
 for svc in \$(echo "\$COMPOSE_SERVICES" | tr ',' ' '); do
   svc=\$(echo "\$svc" | xargs)
   [ -z "\$svc" ] && continue
   echo "Deploying service: \$svc"
-  docker-compose pull "\$svc"
-  docker-compose up -d --no-deps "\$svc"
+  docker-compose -f "\$COMPOSE_FILE" pull "\$svc"
+  docker-compose -f "\$COMPOSE_FILE" up -d --no-deps "\$svc"
 done
-docker-compose ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
+docker-compose -f "\$COMPOSE_FILE" ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
 REMOTE_EOF
                         '''
                     }
@@ -227,7 +244,7 @@ REMOTE_EOF
             echo "Deployed API ${IMAGE_API} to ${DEPLOY_HOST}:${DEPLOY_DIR}${BUILD_WEB == 'true' ? ' (web ' + IMAGE_WEB + ')' : ''}"
         }
         failure {
-            echo 'Build or deploy failed — check: Docker CLI API ≥1.44, dockerhub-deploy, SSH credential/key + authorized_keys on deploy host, compose path, IMAGE_TAG in compose.'
+            echo 'Build or deploy failed — check: Docker CLI API ≥1.44, dockerhub-deploy, SSH key, DEPLOY_DIR + docker-compose.yml on host (deploy/README.md), IMAGE_TAG in compose.'
         }
     }
 }

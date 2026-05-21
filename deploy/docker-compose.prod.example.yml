@@ -2,7 +2,7 @@
 # Jenkins Deploy stage exports IMAGE_TAG, DOCKER_REPO_API, DOCKER_REPO_WEB before pull/up.
 #
 # Prerequisites on host:
-#   - docker compose v2
+#   - docker-compose (classic CLI) or docker compose v2
 #   - docker login (or pull via Jenkins only — ensure host can pull private images)
 #   - Postgres reachable (external container or add a db service)
 #   - nginx.conf in this directory if using the nginx service below
