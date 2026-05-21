@@ -202,14 +202,8 @@ export DOCKER_REPO_API="${DOCKER_REPO_API}"
 export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
 export COMPOSE_SERVICES="${COMPOSE_SERVICES}"
 export COMPOSE_FILE="${COMPOSE_FILE}"
-_deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
-[ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
-echo "Deploy dir: \$_deploy_dir"
-if [ ! -d "\$_deploy_dir" ]; then
-  echo "ERROR: deploy directory does not exist: \$_deploy_dir"
-  echo "Create it and install compose — see deploy/README.md"
-  exit 1
-fi
+_deploy_dir=/root/dev/frontend
+
 cd "\$_deploy_dir"
 if [ ! -f "\$COMPOSE_FILE" ]; then
   echo "ERROR: missing compose file: \$_deploy_dir/\$COMPOSE_FILE"
