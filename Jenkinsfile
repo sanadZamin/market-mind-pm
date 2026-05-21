@@ -134,7 +134,7 @@ pipeline {
                             COMPOSE_SERVICES="${COMPOSE_SERVICES:-springapi,web}"
 
                             print_deploy_pubkey() {
-                              echo "----- Add ONE of these lines to ${env.DEPLOY_USER}@${env.DEPLOY_HOST} ~/.ssh/authorized_keys -----"
+                              echo "----- Add ONE of these lines to ${DEPLOY_USER}@${DEPLOY_HOST} ~/.ssh/authorized_keys -----"
                               if [ -n "${SSH_AUTH_SOCK:-}" ]; then
                                 ssh-add -L 2>/dev/null || true
                               elif [ -n "${SSH_KEY_FILE:-}" ] && [ -f "${SSH_KEY_FILE}" ]; then
@@ -177,8 +177,8 @@ pipeline {
                               exit 1
                             fi
 
-                            echo "Preflight: ${env.DEPLOY_USER}@${env.DEPLOY_HOST}"
-                            if ! "${SSH_CMD[@]}" "${env.DEPLOY_USER}@${env.DEPLOY_HOST}" echo "SSH OK"; then
+                            echo "Preflight: ${DEPLOY_USER}@${DEPLOY_HOST}"
+                            if ! "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" echo "SSH OK"; then
                               echo ""
                               echo "ERROR: Permission denied (publickey)."
                               print_deploy_pubkey
@@ -189,19 +189,19 @@ pipeline {
                               echo "  chmod 600 ~/.ssh/authorized_keys"
                               echo ""
                               echo "Verify from Jenkins container:"
-                              echo "  docker exec -it jenkins_sandbox ssh -i ${env.DEPLOY_SSH_KEY} -o BatchMode=yes ${env.DEPLOY_USER}@${env.DEPLOY_HOST} echo OK"
+                              echo "  docker exec -it jenkins_sandbox ssh -i ${DEPLOY_SSH_KEY} -o BatchMode=yes ${DEPLOY_USER}@${DEPLOY_HOST} echo OK"
                               exit 255
                             fi
 
                             # Do not use `env KEY=a b bash` — spaces in COMPOSE_SERVICES make env run `b` as a command.
-                            "${SSH_CMD[@]}" "${env.DEPLOY_USER}@${env.DEPLOY_HOST}" bash -s <<REMOTE_EOF
+                            "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<REMOTE_EOF
 set -eo pipefail
-export DEPLOY_DIR="${env.DEPLOY_DIR}"
-export IMAGE_TAG="${env.IMAGE_TAG}"
-export DOCKER_REPO_API="${env.DOCKER_REPO_API}"
-export DOCKER_REPO_WEB="${env.DOCKER_REPO_WEB}"
-export COMPOSE_SERVICES="${env.COMPOSE_SERVICES}"
-export COMPOSE_FILE="${env.COMPOSE_FILE}"
+export DEPLOY_DIR="${DEPLOY_DIR}"
+export IMAGE_TAG="${IMAGE_TAG}"
+export DOCKER_REPO_API="${DOCKER_REPO_API}"
+export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
+export COMPOSE_SERVICES="${COMPOSE_SERVICES}"
+export COMPOSE_FILE="${COMPOSE_FILE}"
 _deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
 [ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
 echo "Deploy dir: \$_deploy_dir"
