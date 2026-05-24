@@ -124,85 +124,96 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    if (!env.DEPLOY_DIR?.trim()) {
-                        error('DEPLOY_DIR is empty — set job parameter DEPLOY_DIR (default ~/dev/frontend) or reload Jenkinsfile')
+                    // Resolve deploy settings in Groovy — ${DEPLOY_DIR} inside `def deployBody = { sh ''' }`
+                    // is not substituted by Jenkins and arrives empty on the remote host.
+                    def deployUser = (params.DEPLOY_USER ?: 'root').trim()
+                    def deployHost = (params.DEPLOY_HOST ?: '149.102.140.178').trim()
+                    def deployDir = (params.DEPLOY_DIR ?: '').trim()
+                    if (!deployDir) {
+                        deployDir = '/root/dev/frontend'
                     }
-                    def composeHint = env.COMPOSE_FILE?.trim() ?: '(auto-detect)'
-                    echo "Deploy target: ${env.DEPLOY_USER}@${env.DEPLOY_HOST} dir=${env.DEPLOY_DIR} compose=${composeHint} services=${env.COMPOSE_SERVICES}"
+                    def composeFile = (params.COMPOSE_FILE ?: '').trim()
+                    def composeServices = (params.COMPOSE_SERVICES ?: 'springapi,web').trim()
+                    def imageTag = env.BUILD_NUMBER
+                    def dockerRepoApi = params.DOCKER_REPO_API
+                    def dockerRepoWeb = params.DOCKER_REPO_WEB
+                    def deploySshKey = (params.DEPLOY_SSH_KEY ?: '/var/jenkins_home/.ssh/id_deploy').trim()
+                    def shellQ = { String v -> "'" + v.replace("'", "'\\''") + "'" }
+                    def composeHint = composeFile ?: '(auto-detect)'
+                    echo "Deploy target: ${deployUser}@${deployHost} dir=${deployDir} compose=${composeHint} services=${composeServices} tag=${imageTag}"
+
                     def deployBody = {
-                        sh '''#!/usr/bin/env bash
-                            set -eo pipefail
-                            COMPOSE_SERVICES="${COMPOSE_SERVICES:-springapi,web}"
-
-                            print_deploy_pubkey() {
-                              echo "----- Add ONE of these lines to ${DEPLOY_USER}@${DEPLOY_HOST} ~/.ssh/authorized_keys -----"
-                              if [ -n "${SSH_AUTH_SOCK:-}" ]; then
-                                ssh-add -L 2>/dev/null || true
-                              elif [ -n "${SSH_KEY_FILE:-}" ] && [ -f "${SSH_KEY_FILE}" ]; then
-                                ssh-keygen -y -f "${SSH_KEY_FILE}" 2>/dev/null || true
-                              fi
-                              echo "----- end -----"
-                            }
-
-                            SSH_CMD=(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
-                            SSH_KEY_FILE=""
-                            if [ -n "${SSH_AUTH_SOCK:-}" ] && ssh-add -l >/dev/null 2>&1; then
-                              echo "SSH auth: Jenkins ssh-agent (credential)"
-                              ssh-add -l || true
-                            elif [ -f "${DEPLOY_SSH_KEY}" ]; then
-                              if [ -d "${DEPLOY_SSH_KEY}" ]; then
-                                echo "ERROR: ${DEPLOY_SSH_KEY} is a directory. Mount the private key FILE:"
-                                echo "  /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro"
-                                exit 1
-                              fi
-                              SSH_KEY_FILE="${DEPLOY_SSH_KEY}"
-                              echo "SSH auth: key file ${SSH_KEY_FILE}"
-                              head -1 "${SSH_KEY_FILE}" | grep -qE 'PRIVATE KEY' || {
-                                echo "ERROR: ${SSH_KEY_FILE} does not look like an OpenSSH private key."
-                                exit 1
-                              }
-                              chmod 600 "${SSH_KEY_FILE}" 2>/dev/null || true
-                              SSH_KEY="$(mktemp)"
-                              trap 'rm -f "${SSH_KEY}"' EXIT
-                              cp "${SSH_KEY_FILE}" "${SSH_KEY}"
-                              chmod 600 "${SSH_KEY}"
-                              SSH_CMD+=(-i "${SSH_KEY}")
-                              echo "Key fingerprint:"
-                              ssh-keygen -lf "${SSH_KEY}" || true
-                              echo "Public key for authorized_keys:"
-                              ssh-keygen -y -f "${SSH_KEY}" || true
-                            else
-                              echo "ERROR: No ssh-agent key and no file at ${DEPLOY_SSH_KEY}"
-                              echo "Mount host key: /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro"
-                              echo "Or set Jenkins credential DEPLOY_SSH_CREDENTIALS_ID (e.g. deploy-ssh-key)."
-                              exit 1
-                            fi
-
-                            echo "Preflight: ${DEPLOY_USER}@${DEPLOY_HOST}"
-                            if ! "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" echo "SSH OK"; then
-                              echo ""
-                              echo "ERROR: Permission denied (publickey)."
-                              print_deploy_pubkey
-                              echo ""
-                              echo "On deploy host (as root), run:"
-                              echo "  mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-                              echo "  echo '<paste public key line above>' >> ~/.ssh/authorized_keys"
-                              echo "  chmod 600 ~/.ssh/authorized_keys"
-                              echo ""
-                              echo "Verify from Jenkins container:"
-                              echo "  docker exec -it jenkins_sandbox ssh -i ${DEPLOY_SSH_KEY} -o BatchMode=yes ${DEPLOY_USER}@${DEPLOY_HOST} echo OK"
-                              exit 255
-                            fi
-
-                            # Do not use `env KEY=a b bash` — spaces in COMPOSE_SERVICES make env run `b` as a command.
-                            "${SSH_CMD[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s <<REMOTE_EOF
+                        sh """#!/usr/bin/env bash
 set -eo pipefail
-export DEPLOY_DIR="${DEPLOY_DIR}"
-export IMAGE_TAG="${IMAGE_TAG}"
-export DOCKER_REPO_API="${DOCKER_REPO_API}"
-export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
-export COMPOSE_SERVICES="${COMPOSE_SERVICES}"
-export COMPOSE_FILE="${COMPOSE_FILE}"
+
+print_deploy_pubkey() {
+  echo "----- Add ONE of these lines to ${deployUser}@${deployHost} ~/.ssh/authorized_keys -----"
+  if [ -n "\${SSH_AUTH_SOCK:-}" ]; then
+    ssh-add -L 2>/dev/null || true
+  elif [ -n "\${SSH_KEY_FILE:-}" ] && [ -f "\${SSH_KEY_FILE}" ]; then
+    ssh-keygen -y -f "\${SSH_KEY_FILE}" 2>/dev/null || true
+  fi
+  echo "----- end -----"
+}
+
+SSH_CMD=(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
+SSH_KEY_FILE=""
+if [ -n "\${SSH_AUTH_SOCK:-}" ] && ssh-add -l >/dev/null 2>&1; then
+  echo "SSH auth: Jenkins ssh-agent (credential)"
+  ssh-add -l || true
+elif [ -f ${shellQ(deploySshKey)} ]; then
+  if [ -d ${shellQ(deploySshKey)} ]; then
+    echo "ERROR: ${deploySshKey} is a directory. Mount the private key FILE:"
+    echo "  /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro"
+    exit 1
+  fi
+  SSH_KEY_FILE=${shellQ(deploySshKey)}
+  echo "SSH auth: key file \${SSH_KEY_FILE}"
+  head -1 "\${SSH_KEY_FILE}" | grep -qE 'PRIVATE KEY' || {
+    echo "ERROR: \${SSH_KEY_FILE} does not look like an OpenSSH private key."
+    exit 1
+  }
+  chmod 600 "\${SSH_KEY_FILE}" 2>/dev/null || true
+  SSH_KEY="\$(mktemp)"
+  trap 'rm -f "\${SSH_KEY}"' EXIT
+  cp "\${SSH_KEY_FILE}" "\${SSH_KEY}"
+  chmod 600 "\${SSH_KEY}"
+  SSH_CMD+=(-i "\${SSH_KEY}")
+  echo "Key fingerprint:"
+  ssh-keygen -lf "\${SSH_KEY}" || true
+  echo "Public key for authorized_keys:"
+  ssh-keygen -y -f "\${SSH_KEY}" || true
+else
+  echo "ERROR: No ssh-agent key and no file at ${deploySshKey}"
+  echo "Mount host key: /root/jenkins-deploy:/var/jenkins_home/.ssh/id_deploy:ro"
+  echo "Or set Jenkins credential DEPLOY_SSH_CREDENTIALS_ID (e.g. deploy-ssh-key)."
+  exit 1
+fi
+
+echo "Preflight: ${deployUser}@${deployHost}"
+if ! "\${SSH_CMD[@]}" "${deployUser}@${deployHost}" echo "SSH OK"; then
+  echo ""
+  echo "ERROR: Permission denied (publickey)."
+  print_deploy_pubkey
+  echo ""
+  echo "On deploy host (as root), run:"
+  echo "  mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+  echo "  echo '<paste public key line above>' >> ~/.ssh/authorized_keys"
+  echo "  chmod 600 ~/.ssh/authorized_keys"
+  echo ""
+  echo "Verify from Jenkins container:"
+  echo "  docker exec -it jenkins_sandbox ssh -i ${deploySshKey} -o BatchMode=yes ${deployUser}@${deployHost} echo OK"
+  exit 255
+fi
+
+"\${SSH_CMD[@]}" "${deployUser}@${deployHost}" bash -s <<REMOTE_EOF
+set -eo pipefail
+export DEPLOY_DIR=${shellQ(deployDir)}
+export IMAGE_TAG=${shellQ(imageTag)}
+export DOCKER_REPO_API=${shellQ(dockerRepoApi)}
+export DOCKER_REPO_WEB=${shellQ(dockerRepoWeb)}
+export COMPOSE_SERVICES=${shellQ(composeServices)}
+export COMPOSE_FILE=${shellQ(composeFile)}
 _deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
 [ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
 echo "Deploy dir: \$_deploy_dir"
@@ -241,7 +252,7 @@ for svc in \$(echo "\$COMPOSE_SERVICES" | tr ',' ' '); do
 done
 docker-compose -f "\$compose_file" ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
 REMOTE_EOF
-                        '''
+"""
                     }
                     def credId = params.DEPLOY_SSH_CREDENTIALS_ID?.trim()
                     if (credId) {
