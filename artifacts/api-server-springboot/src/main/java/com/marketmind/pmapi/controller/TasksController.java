@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -186,6 +187,12 @@ public class TasksController {
     if (updatedOpt.isEmpty()) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Not found"));
     }
+
+    boolean applyToSubtasks = Boolean.TRUE.equals(body.get("applyToSubtasks"));
+    if (applyToSubtasks && existing.parentTaskId == null) {
+      propagateToSubtasks(taskId, body, fields);
+    }
+
     List<Task> enriched = taskEnrichmentService.enrichTasks(List.of(updatedOpt.get()));
 
     Integer userId = (Integer) request.getAttribute(BearerAuthInterceptor.USER_ID_ATTR);
@@ -374,6 +381,33 @@ public class TasksController {
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
           .body(Map.of("error", "Failed to rephrase description", "message", e.getMessage()));
+    }
+  }
+
+  private void propagateToSubtasks(int parentTaskId, Map<String, Object> body, Map<String, Object> parentFields) {
+    List<Task> subtasks = taskRepository.listSubtasks(parentTaskId);
+    if (subtasks.isEmpty()) {
+      return;
+    }
+    for (Task sub : subtasks) {
+      Map<String, Object> subFields = new HashMap<>();
+      subFields.put("title", sub.title);
+      subFields.put("description", sub.description);
+      subFields.put("status", body.containsKey("status") ? parentFields.get("status") : sub.status);
+      subFields.put("priority", body.containsKey("priority") ? parentFields.get("priority") : sub.priority);
+      subFields.put(
+          "assigneeId",
+          body.containsKey("assigneeId") ? parentFields.get("assigneeId") : sub.assigneeId
+      );
+      subFields.put(
+          "startDate",
+          body.containsKey("startDate") ? parentFields.get("startDate") : sub.startDate
+      );
+      subFields.put("dueDate", body.containsKey("dueDate") ? parentFields.get("dueDate") : sub.dueDate);
+      subFields.put("estimatedHours", sub.estimatedHours);
+      subFields.put("tags", sub.tags != null ? sub.tags : List.of());
+      subFields.put("position", sub.position);
+      taskRepository.updateTask(sub.id, subFields);
     }
   }
 }

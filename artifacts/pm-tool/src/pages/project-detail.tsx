@@ -78,6 +78,23 @@ const PRIORITY_CONFIG: Record<string, string> = {
   urgent: "bg-red-500/20 text-red-300 font-bold",
 };
 
+/** Parent-task fields that cascade to subtasks when the user confirms. */
+const TASK_FIELDS_AFFECTING_SUBTASKS = new Set([
+  "status",
+  "priority",
+  "assigneeId",
+  "startDate",
+  "dueDate",
+]);
+
+const TASK_FIELD_LABELS: Record<string, string> = {
+  status: "status",
+  priority: "priority",
+  assigneeId: "assignee",
+  startDate: "start date",
+  dueDate: "deadline",
+};
+
 const taskSchema = z.object({
   title:       z.string().min(1, "Title is required"),
   description: z.string().optional(),
@@ -904,20 +921,44 @@ function TaskBoard({
   onTaskClick: (id: number) => void;
   users: User[];
 }) {
-  const updateMutation = useUpdateTask();
-  const queryClient    = useQueryClient();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    taskId: number;
+    taskTitle: string;
+    newStatus: TaskStatus;
+    subtaskCount: number;
+  } | null>(null);
+
+  const applyStatusChange = async (taskId: number, newStatus: TaskStatus, applyToSubtasks: boolean) => {
+    const body: Record<string, unknown> = { status: newStatus };
+    if (applyToSubtasks) body.applyToSubtasks = true;
+    await updateTask(taskId, body as any, getAuthRequest());
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+  };
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
     const { source, destination, draggableId } = result;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-    const taskId   = Number(draggableId);
+    const taskId = Number(draggableId);
     const newStatus = destination.droppableId as TaskStatus;
-    await updateTask(taskId, { status: newStatus }, getAuthRequest());
-    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+    const task = tasks.find((t) => t.id === taskId);
+    const subtaskCount = task?.subtaskCount ?? 0;
+    if (subtaskCount > 0) {
+      setPendingStatusChange({
+        taskId,
+        taskTitle: task?.title ?? "Task",
+        newStatus,
+        subtaskCount,
+      });
+      return;
+    }
+    await applyStatusChange(taskId, newStatus, false);
   };
 
   return (
+    <>
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex gap-6 items-start min-w-max pb-8">
         {visibleStatuses.map((colId) => {
@@ -968,6 +1009,36 @@ function TaskBoard({
         })}
       </div>
     </DragDropContext>
+
+    <AlertDialog open={!!pendingStatusChange} onOpenChange={(open) => !open && setPendingStatusChange(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Update subtasks too?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Moving <span className="font-semibold text-foreground">"{pendingStatusChange?.taskTitle}"</span> to{" "}
+            {STATUS_CONFIG[pendingStatusChange?.newStatus ?? "todo"]?.label} will also update{" "}
+            <span className="font-semibold text-foreground">{pendingStatusChange?.subtaskCount}</span> subtask
+            {pendingStatusChange?.subtaskCount !== 1 ? "s" : ""} to the same status.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              const pending = pendingStatusChange;
+              setPendingStatusChange(null);
+              if (!pending) return;
+              void applyStatusChange(pending.taskId, pending.newStatus, true).catch(() => {
+                toast({ variant: "destructive", title: "Failed to update task" });
+              });
+            }}
+          >
+            Update task & subtasks
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
@@ -2163,8 +2234,15 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
   const [showSubtaskInput, setShowSubtaskInput]     = useState(false);
   const [selectedBlockerId, setSelectedBlockerId]   = useState<string>("");
   const [showDeleteConfirm, setShowDeleteConfirm]   = useState(false);
+  const [subtaskChangeConfirm, setSubtaskChangeConfirm] = useState<{
+    fieldLabel: string;
+    subtaskCount: number;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
   const [descriptionDraft, setDescriptionDraft]     = useState("");
   const [isRephrasingTaskDescription, setIsRephrasingTaskDescription] = useState(false);
+
+  const subtaskCountForConfirm = subtasks?.length ?? task?.subtaskCount ?? 0;
 
   useEffect(() => {
     if (task) setDescriptionDraft(task.description ?? "");
@@ -2236,15 +2314,41 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
     queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
   };
 
-  const handleFieldUpdate = async (field: string, value: string | number | null) => {
+  const handleFieldUpdate = async (
+    field: string,
+    value: string | number | null,
+    applyToSubtasks = false,
+  ) => {
     try {
-      await updateTask(taskId!, { [field]: value } as any, getAuthRequest());
+      const body: Record<string, unknown> = { [field]: value };
+      if (applyToSubtasks) body.applyToSubtasks = true;
+      await updateTask(taskId!, body as any, getAuthRequest());
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
-      toast({ title: "Task updated" });
+      if (applyToSubtasks) refetchSubtasks();
+      toast({
+        title: "Task updated",
+        description: applyToSubtasks
+          ? `This task and ${subtaskCountForConfirm} subtask${subtaskCountForConfirm !== 1 ? "s" : ""} were updated.`
+          : undefined,
+      });
     } catch {
       toast({ variant: "destructive", title: "Failed to update task" });
     }
+  };
+
+  const requestFieldUpdate = (field: string, value: string | number | null) => {
+    const count = subtasks?.length ?? task?.subtaskCount ?? 0;
+    const apply = () => handleFieldUpdate(field, value, count > 0);
+    if (count > 0 && TASK_FIELDS_AFFECTING_SUBTASKS.has(field)) {
+      setSubtaskChangeConfirm({
+        fieldLabel: TASK_FIELD_LABELS[field] ?? field,
+        subtaskCount: count,
+        onConfirm: apply,
+      });
+      return;
+    }
+    void apply();
   };
 
   const handleRephraseTaskDescription = async () => {
@@ -2334,7 +2438,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                   <select
                     className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
                     value={task.assigneeId ?? ""}
-                    onChange={e => handleFieldUpdate("assigneeId", e.target.value ? Number(e.target.value) : null)}
+                    onChange={e => requestFieldUpdate("assigneeId", e.target.value ? Number(e.target.value) : null)}
                   >
                     <option value="">Unassigned</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -2348,7 +2452,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                     type="date"
                     className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
                     value={task.dueDate ? task.dueDate.slice(0, 10) : ""}
-                    onChange={e => handleFieldUpdate("dueDate", e.target.value || null)}
+                    onChange={e => requestFieldUpdate("dueDate", e.target.value || null)}
                   />
                 </div>
 
@@ -2358,7 +2462,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                   <select
                     className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
                     value={task.priority}
-                    onChange={e => handleFieldUpdate("priority", e.target.value)}
+                    onChange={e => requestFieldUpdate("priority", e.target.value)}
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -2374,7 +2478,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                     type="date"
                     className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
                     value={task.startDate ? task.startDate.slice(0, 10) : ""}
-                    onChange={e => handleFieldUpdate("startDate", e.target.value || null)}
+                    onChange={e => requestFieldUpdate("startDate", e.target.value || null)}
                   />
                 </div>
 
@@ -2384,7 +2488,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                   <select
                     className="w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer text-foreground"
                     value={task.status}
-                    onChange={e => handleFieldUpdate("status", e.target.value)}
+                    onChange={e => requestFieldUpdate("status", e.target.value)}
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
@@ -2572,7 +2676,7 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
                     const trimmed = descriptionDraft.trim();
                     const prev = (task.description ?? "").trim();
                     if (trimmed === prev) return;
-                    void handleFieldUpdate("description", trimmed.length ? trimmed : null);
+                    void handleFieldUpdate("description", trimmed.length ? trimmed : null, false);
                   }}
                 />
                 <p className="text-[11px] text-muted-foreground mt-1.5">Saves when you leave this field.</p>
@@ -2623,6 +2727,33 @@ function TaskDetailSheet({ taskId, onClose, users, projectId, allTasks }: { task
           </div>
         )}
       </SheetContent>
+
+      <AlertDialog open={!!subtaskChangeConfirm} onOpenChange={(open) => !open && setSubtaskChangeConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update subtasks too?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Changing the {subtaskChangeConfirm?.fieldLabel} on{" "}
+              <span className="font-semibold text-foreground">"{task?.title}"</span> will apply the same{" "}
+              {subtaskChangeConfirm?.fieldLabel} to all{" "}
+              <span className="font-semibold text-foreground">{subtaskChangeConfirm?.subtaskCount}</span>{" "}
+              subtask{subtaskChangeConfirm?.subtaskCount !== 1 ? "s" : ""}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = subtaskChangeConfirm;
+                setSubtaskChangeConfirm(null);
+                void pending?.onConfirm();
+              }}
+            >
+              Update task & subtasks
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
