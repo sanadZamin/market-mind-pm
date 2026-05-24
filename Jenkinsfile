@@ -128,16 +128,14 @@ pipeline {
                     // is not substituted by Jenkins and arrives empty on the remote host.
                     def deployUser = (params.DEPLOY_USER ?: 'root').trim()
                     def deployHost = (params.DEPLOY_HOST ?: '149.102.140.178').trim()
-                    def deployDir = (params.DEPLOY_DIR ?: '').trim()
-                    if (!deployDir) {
-                        deployDir = '/root/dev/frontend'
-                    }
-                    def composeFile = (params.COMPOSE_FILE ?: '').trim()
-                    def composeServices = (params.COMPOSE_SERVICES ?: 'springapi,web').trim()
-                    def imageTag = env.BUILD_NUMBER
-                    def dockerRepoApi = params.DOCKER_REPO_API
-                    def dockerRepoWeb = params.DOCKER_REPO_WEB
-                    def deploySshKey = (params.DEPLOY_SSH_KEY ?: '/var/jenkins_home/.ssh/id_deploy').trim()
+                    // Single expression — CPS can break if deployDir is reassigned after def, then used in a closure.
+                    final String deployDir = ((params.DEPLOY_DIR ?: '').trim() ?: '/root/dev/frontend')
+                    final String composeFile = (params.COMPOSE_FILE ?: '').trim()
+                    final String composeServices = (params.COMPOSE_SERVICES ?: 'springapi,web').trim()
+                    final String imageTag = "${env.BUILD_NUMBER}"
+                    final String dockerRepoApi = "${params.DOCKER_REPO_API}"
+                    final String dockerRepoWeb = "${params.DOCKER_REPO_WEB}"
+                    final String deploySshKey = (params.DEPLOY_SSH_KEY ?: '/var/jenkins_home/.ssh/id_deploy').trim()
                     def shellQ = { String v -> "'" + v.replace("'", "'\\''") + "'" }
                     def composeHint = composeFile ?: '(auto-detect)'
                     echo "Deploy target: ${deployUser}@${deployHost} dir=${deployDir} compose=${composeHint} services=${composeServices} tag=${imageTag}"
@@ -206,14 +204,17 @@ if ! "\${SSH_CMD[@]}" "${deployUser}@${deployHost}" echo "SSH OK"; then
   exit 255
 fi
 
-"\${SSH_CMD[@]}" "${deployUser}@${deployHost}" bash -s <<REMOTE_EOF
+echo "Remote deploy args: dir=${deployDir} tag=${imageTag} services=${composeServices}"
+"\${SSH_CMD[@]}" "${deployUser}@${deployHost}" bash -s -- ${shellQ(deployDir)} ${shellQ(imageTag)} ${shellQ(dockerRepoApi)} ${shellQ(dockerRepoWeb)} ${shellQ(composeServices)} ${shellQ(composeFile)} <<'REMOTE_SCRIPT'
 set -eo pipefail
-export DEPLOY_DIR=${shellQ(deployDir)}
-export IMAGE_TAG=${shellQ(imageTag)}
-export DOCKER_REPO_API=${shellQ(dockerRepoApi)}
-export DOCKER_REPO_WEB=${shellQ(dockerRepoWeb)}
-export COMPOSE_SERVICES=${shellQ(composeServices)}
-export COMPOSE_FILE=${shellQ(composeFile)}
+DEPLOY_DIR=\$1
+IMAGE_TAG=\$2
+DOCKER_REPO_API=\$3
+DOCKER_REPO_WEB=\$4
+COMPOSE_SERVICES=\$5
+COMPOSE_FILE=\$6
+shift 6
+export DEPLOY_DIR IMAGE_TAG DOCKER_REPO_API DOCKER_REPO_WEB COMPOSE_SERVICES COMPOSE_FILE
 _deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
 [ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
 echo "Deploy dir: \$_deploy_dir"
@@ -238,7 +239,6 @@ if [ -z "\$compose_file" ]; then
 fi
 if [ -z "\$compose_file" ] || [ ! -f "\$compose_file" ]; then
   echo "ERROR: no compose file in \$_deploy_dir"
-  echo "Add docker-compose.yml or set Jenkins parameter COMPOSE_FILE to your filename."
   ls -la "\$_deploy_dir" || true
   exit 1
 fi
@@ -251,7 +251,7 @@ for svc in \$(echo "\$COMPOSE_SERVICES" | tr ',' ' '); do
   docker-compose -f "\$compose_file" up -d --no-deps "\$svc"
 done
 docker-compose -f "\$compose_file" ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
-REMOTE_EOF
+REMOTE_SCRIPT
 """
                     }
                     def credId = params.DEPLOY_SSH_CREDENTIALS_ID?.trim()
