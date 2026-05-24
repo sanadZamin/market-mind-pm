@@ -37,7 +37,7 @@ pipeline {
         string(name: 'DEPLOY_HOST', defaultValue: '149.102.140.178', description: 'Deploy target host (use 172.17.0.1 if Jenkins runs on same machine in Docker)')
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user on deploy host')
         string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/frontend', description: 'Directory on deploy host with production docker-compose.yml (e.g. ~/dev/frontend for root)')
-        string(name: 'COMPOSE_FILE', defaultValue: 'docker-compose.yaml', description: 'Compose file name inside DEPLOY_DIR (see deploy/docker-compose.prod.example.yml)')
+        string(name: 'COMPOSE_FILE', defaultValue: '', description: 'Compose file in DEPLOY_DIR (e.g. docker-compose.yaml). Leave empty to auto-detect.')
         string(name: 'COMPOSE_SERVICES', defaultValue: 'springapi,web', description: 'Compose services to pull/restart — comma-separated (springapi,web) or space-separated (springapi web)')
         string(name: 'DEPLOY_SSH_CREDENTIALS_ID', defaultValue: '', description: 'Jenkins SSH credential ID (SSH Username with private key). Leave empty to use mounted DEPLOY_SSH_KEY file (see deploy/jenkins-docker-compose.example.yml).')
         string(name: 'DEPLOY_SSH_KEY', defaultValue: '/var/jenkins_home/.ssh/id_deploy', description: 'Deploy private key path (only if DEPLOY_SSH_CREDENTIALS_ID is empty)')
@@ -55,7 +55,7 @@ pipeline {
         DEPLOY_HOST = "${params.DEPLOY_HOST}"
         DEPLOY_USER = "${params.DEPLOY_USER}"
         DEPLOY_DIR = "${params.DEPLOY_DIR?.trim() ?: '~/dev/frontend'}"
-        COMPOSE_FILE = "${params.COMPOSE_FILE?.trim() ?: 'docker-compose.yml'}"
+        COMPOSE_FILE = "${params.COMPOSE_FILE?.trim() ?: ''}"
         COMPOSE_SERVICES = "${params.COMPOSE_SERVICES?.trim() ?: 'springapi,web'}"
         DEPLOY_SSH_KEY = "${params.DEPLOY_SSH_KEY}"
     }
@@ -127,7 +127,8 @@ pipeline {
                     if (!env.DEPLOY_DIR?.trim()) {
                         error('DEPLOY_DIR is empty — set job parameter DEPLOY_DIR (default ~/dev/frontend) or reload Jenkinsfile')
                     }
-                    echo "Deploy target: ${env.DEPLOY_USER}@${env.DEPLOY_HOST} dir=${env.DEPLOY_DIR} file=${env.COMPOSE_FILE} services=${env.COMPOSE_SERVICES}"
+                    def composeHint = env.COMPOSE_FILE?.trim() ?: '(auto-detect)'
+                    echo "Deploy target: ${env.DEPLOY_USER}@${env.DEPLOY_HOST} dir=${env.DEPLOY_DIR} compose=${composeHint} services=${env.COMPOSE_SERVICES}"
                     def deployBody = {
                         sh '''#!/usr/bin/env bash
                             set -eo pipefail
@@ -202,25 +203,43 @@ export DOCKER_REPO_API="${DOCKER_REPO_API}"
 export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
 export COMPOSE_SERVICES="${COMPOSE_SERVICES}"
 export COMPOSE_FILE="${COMPOSE_FILE}"
-_deploy_dir=/root/dev/frontend
-
-cd "\$_deploy_dir"
-if [ ! -f "\$COMPOSE_FILE" ]; then
-  echo "ERROR: missing compose file: \$_deploy_dir/\$COMPOSE_FILE"
-  echo "Contents of \$_deploy_dir:"
-  ls -la "\$_deploy_dir" || true
-  echo ""
-  echo "One-time on deploy host: copy deploy/docker-compose.prod.example.yml to \$_deploy_dir/\$COMPOSE_FILE and add .env (PGPASSWORD, etc.)"
+_deploy_dir=\$(printf '%s' "\$DEPLOY_DIR" | sed "s|^~/|\$HOME/|")
+[ "\$_deploy_dir" = "~" ] && _deploy_dir="\$HOME"
+echo "Deploy dir: \$_deploy_dir"
+if [ ! -d "\$_deploy_dir" ]; then
+  echo "ERROR: deploy directory does not exist: \$_deploy_dir"
   exit 1
 fi
+cd "\$_deploy_dir"
+compose_file="\$COMPOSE_FILE"
+if [ -n "\$compose_file" ] && [ ! -f "\$compose_file" ]; then
+  echo "ERROR: COMPOSE_FILE not found: \$_deploy_dir/\$compose_file"
+  ls -la "\$_deploy_dir" || true
+  exit 1
+fi
+if [ -z "\$compose_file" ]; then
+  for candidate in docker-compose.yaml docker-compose.yml compose.yaml compose.yml; do
+    if [ -f "\$candidate" ]; then
+      compose_file="\$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "\$compose_file" ] || [ ! -f "\$compose_file" ]; then
+  echo "ERROR: no compose file in \$_deploy_dir"
+  echo "Add docker-compose.yml or set Jenkins parameter COMPOSE_FILE to your filename."
+  ls -la "\$_deploy_dir" || true
+  exit 1
+fi
+echo "Using compose file: \$_deploy_dir/\$compose_file"
 for svc in \$(echo "\$COMPOSE_SERVICES" | tr ',' ' '); do
   svc=\$(echo "\$svc" | xargs)
   [ -z "\$svc" ] && continue
   echo "Deploying service: \$svc"
-  docker-compose -f "\$COMPOSE_FILE" pull "\$svc"
-  docker-compose -f "\$COMPOSE_FILE" up -d --no-deps "\$svc"
+  docker-compose -f "\$compose_file" pull "\$svc"
+  docker-compose -f "\$compose_file" up -d --no-deps "\$svc"
 done
-docker-compose -f "\$COMPOSE_FILE" ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
+docker-compose -f "\$compose_file" ps \$(echo "\$COMPOSE_SERVICES" | tr ',' ' ')
 REMOTE_EOF
                         '''
                     }
