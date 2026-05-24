@@ -1,32 +1,25 @@
-# Remote deploy (Jenkins → deploy host)
+# Remote deploy
 
-Jenkins SSHs to **DEPLOY_DIR** (default `/root/dev/frontend`), runs `deploy/jenkins-remote-deploy.sh` on the host, finds your existing compose file, and runs `docker-compose pull/up` for **COMPOSE_SERVICES** (`springapi,web`).
+Jenkins **Deploy** stage SSHs to the host, `cd`s into **DEPLOY_DIR**, exports **IMAGE_TAG** / **DOCKER_REPO_***, then:
 
-## Compose file on the server
+```bash
+docker-compose -f <COMPOSE_FILE> pull
+docker-compose -f <COMPOSE_FILE> up -d
+```
 
-Use **your** `docker-compose.yml` or `docker-compose.yaml` in the deploy directory. Jenkins does **not** copy anything from this repo unless you choose to.
+## On the server
 
-**COMPOSE_FILE** job parameter:
-
-- **Empty (default)** — auto-detect, in order: `docker-compose.yaml`, `docker-compose.yml`, `compose.yaml`, `compose.yml`
-- **Set explicitly** — e.g. `docker-compose.yaml` if you use a non-standard name
+- Compose file at e.g. `/root/dev/frontend/docker-compose.yaml`
+- Images tagged with `${IMAGE_TAG}` (build number from Jenkins)
+- `.env` for secrets (PGPASSWORD, etc.)
 
 ## Jenkins parameters
 
 | Parameter | Default |
 |-----------|---------|
 | `DEPLOY_DIR` | `/root/dev/frontend` |
-| `COMPOSE_FILE` | *(empty = auto-detect)* |
-| `COMPOSE_SERVICES` | `springapi,web` |
+| `COMPOSE_FILE` | `docker-compose.yaml` |
+| `DEPLOY_HOST` | `149.102.140.178` |
+| `DEPLOY_USER` | `root` |
 
-Jenkins exports `IMAGE_TAG`, `DOCKER_REPO_API`, and `DOCKER_REPO_WEB` before pull/up — your compose file should reference those variables.
-
-## Verify on the host
-
-```bash
-cd /root/dev/frontend   # or your DEPLOY_DIR
-ls -la docker-compose.* compose.*
-docker-compose -f docker-compose.yaml config   # use your actual filename
-```
-
-Optional reference only (not deployed by Jenkins): `deploy/docker-compose.prod.example.yml`.
+Optional reference: `deploy/docker-compose.prod.example.yml` (not copied by Jenkins).
