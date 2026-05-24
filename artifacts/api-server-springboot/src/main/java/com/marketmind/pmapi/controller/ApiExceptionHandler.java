@@ -16,6 +16,7 @@ public class ApiExceptionHandler {
     // Keep same shape as Node:
     // { "error": "Bad request", "message": "Invalid request body" }
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+    
         .body(Map.of("error", "Bad request", "message", "Invalid request body"));
   }
 
