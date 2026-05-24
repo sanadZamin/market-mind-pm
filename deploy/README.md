@@ -1,6 +1,6 @@
 # Remote deploy (Jenkins → deploy host)
 
-Jenkins SSHs to **DEPLOY_DIR** (default `/root/dev/frontend`), finds your existing compose file, and runs `docker-compose pull/up` for **COMPOSE_SERVICES** (`springapi,web`).
+Jenkins SSHs to **DEPLOY_DIR** (default `/root/dev/frontend`), runs `deploy/jenkins-remote-deploy.sh` on the host, finds your existing compose file, and runs `docker-compose pull/up` for **COMPOSE_SERVICES** (`springapi,web`).
 
 ## Compose file on the server
 
