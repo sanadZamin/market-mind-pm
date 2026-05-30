@@ -7,19 +7,18 @@ const logoImg = "/logo.png";
 
 const signInPath = getSignInPath();
 
-export type MarketingNavActive = "technology" | "pricing" | "resources";
-
-function navLinkClass(active: boolean) {
-  return `border-b-2 border-transparent pb-0.5 transition-colors hover:text-foreground ${
-    active ? "border-primary text-foreground" : ""
-  }`;
-}
+export type MarketingNavActive = "technology" | "resources";
 
 export function MarketingNav({ active }: { active: MarketingNavActive }) {
   const { theme, toggle } = useTheme();
   const techActive = active === "technology";
-  const pricingActive = active === "pricing";
   const resourcesActive = active === "resources";
+
+  function navLinkClass(isActive: boolean) {
+    return `border-b-2 border-transparent pb-0.5 transition-colors hover:text-foreground ${
+      isActive ? "border-primary text-foreground" : ""
+    }`;
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/75 backdrop-blur-xl">
@@ -33,9 +32,6 @@ export function MarketingNav({ active }: { active: MarketingNavActive }) {
           <nav className="hidden md:flex flex-1 items-center justify-center gap-8 text-sm font-medium text-muted-foreground lg:gap-10">
             <Link href="/" className={navLinkClass(techActive)}>
               Technology
-            </Link>
-            <Link href="/pricing" className={navLinkClass(pricingActive)}>
-              Pricing
             </Link>
             <Link href="/resources" className={navLinkClass(resourcesActive)}>
               Resources
@@ -72,9 +68,6 @@ export function MarketingNav({ active }: { active: MarketingNavActive }) {
         <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 border-t border-border/60 pt-3 text-sm font-medium text-muted-foreground md:hidden">
           <Link href="/" className={techActive ? "text-foreground" : ""}>
             Technology
-          </Link>
-          <Link href="/pricing" className={pricingActive ? "text-foreground" : ""}>
-            Pricing
           </Link>
           <Link href="/resources" className={resourcesActive ? "text-foreground" : ""}>
             Resources

@@ -161,7 +161,7 @@ function FeatureRow({ feature }: { feature: PlanFeature }) {
 export default function PricingLanding() {
   return (
     <MarketingLayout>
-      <MarketingNav active="pricing" />
+      <MarketingNav active="technology" />
 
       <main className="relative">
         <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 text-center sm:px-6 sm:pt-16 lg:px-8">
