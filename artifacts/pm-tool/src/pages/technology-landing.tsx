@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { MarketingLayout } from "@/components/marketing/marketing-layout";
 import { MarketingNav } from "@/components/marketing/marketing-nav";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { HeroTradingBackground } from "@/components/marketing/hero-trading-background";
 import { Button } from "@/components/ui/button";
 import { getSignInPath } from "@/lib/app-entry";
 import { motion } from "framer-motion";
@@ -78,8 +79,10 @@ export default function TechnologyLanding() {
       <MarketingNav active="technology" />
 
       <main className="relative">
-        <section className="mx-auto max-w-4xl px-4 pb-20 pt-12 text-center sm:px-6 sm:pt-16 lg:px-8">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+        <section className="relative overflow-hidden pb-20 pt-12 sm:pt-16">
+          <HeroTradingBackground />
+          <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
             Engine: Neural Core v2.0
           </div>
@@ -93,6 +96,7 @@ export default function TechnologyLanding() {
             reinforcement learning, and financial LLMs to deliver real-time market intelligence and institutional-grade
             tooling.
           </p>
+          </div>
         </section>
 
         {/* Bento */}
