@@ -1,181 +1,126 @@
 import { motion } from "framer-motion";
 
+/** Candle layout in a fixed 800×220 viewBox — never stretched (preserveAspectRatio meet). */
 const CANDLES = [
-  { x: 8, h: 42, body: 18, up: true },
-  { x: 14, h: 28, body: 12, up: false },
-  { x: 20, h: 55, body: 22, up: true },
-  { x: 26, h: 36, body: 14, up: true },
-  { x: 32, h: 48, body: 16, up: false },
-  { x: 38, h: 62, body: 24, up: true },
-  { x: 44, h: 40, body: 15, up: false },
-  { x: 50, h: 52, body: 20, up: true },
-  { x: 56, h: 34, body: 11, up: false },
-  { x: 62, h: 58, body: 21, up: true },
-  { x: 68, h: 45, body: 17, up: true },
-  { x: 74, h: 30, body: 10, up: false },
-  { x: 80, h: 50, body: 19, up: true },
-  { x: 86, h: 38, body: 13, up: false },
-  { x: 92, h: 44, body: 16, up: true },
-];
-
-const TICKERS = [
-  { label: "SPX", value: "+1.24%", x: "12%", y: "22%" },
-  { label: "BTC", value: "68,420", x: "78%", y: "18%" },
-  { label: "EUR/USD", value: "1.0842", x: "84%", y: "38%" },
-  { label: "VIX", value: "14.2", x: "10%", y: "42%" },
+  { x: 48, h: 52, body: 22, up: true },
+  { x: 88, h: 38, body: 14, up: false },
+  { x: 128, h: 68, body: 28, up: true },
+  { x: 168, h: 44, body: 16, up: true },
+  { x: 208, h: 58, body: 20, up: false },
+  { x: 248, h: 72, body: 30, up: true },
+  { x: 288, h: 46, body: 17, up: false },
+  { x: 328, h: 62, body: 24, up: true },
+  { x: 368, h: 40, body: 13, up: false },
+  { x: 408, h: 55, body: 21, up: true },
+  { x: 448, h: 48, body: 18, up: true },
+  { x: 488, h: 36, body: 12, up: false },
+  { x: 528, h: 64, body: 26, up: true },
+  { x: 568, h: 42, body: 15, up: false },
+  { x: 608, h: 50, body: 19, up: true },
+  { x: 648, h: 58, body: 22, up: true },
+  { x: 688, h: 44, body: 16, up: false },
+  { x: 728, h: 60, body: 23, up: true },
 ];
 
 export function HeroTradingBackground() {
   return (
-    <div
-      className="pointer-events-none absolute inset-0 -z-0 overflow-hidden"
-      aria-hidden
-    >
-      {/* Base gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.07] via-background/80 to-background dark:from-primary/[0.12] dark:via-background/90" />
-
-      {/* Perspective trading floor grid */}
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {/* Soft ambient glow — no stretch */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-background/90 to-background dark:from-primary/[0.1]" />
       <div
-        className="absolute bottom-0 left-1/2 h-[55%] w-[160%] -translate-x-1/2 opacity-[0.35] dark:opacity-[0.5]"
-        style={{
-          transform: "translateX(-50%) perspective(520px) rotateX(68deg)",
-          transformOrigin: "50% 100%",
-        }}
-      >
-        <div
-          className="h-full w-full"
-          style={{
-            backgroundImage: `
-              linear-gradient(hsl(var(--primary) / 0.35) 1px, transparent 1px),
-              linear-gradient(90deg, hsl(var(--primary) / 0.25) 1px, transparent 1px)
-            `,
-            backgroundSize: "48px 48px",
-            maskImage: "linear-gradient(to top, black 20%, transparent 95%)",
-            WebkitMaskImage: "linear-gradient(to top, black 20%, transparent 95%)",
-          }}
-        />
-      </div>
-
-      {/* Animated chart + candles */}
-      <svg
-        className="absolute bottom-0 left-0 h-[45%] w-full opacity-50 dark:opacity-65"
-        viewBox="0 0 100 50"
-        preserveAspectRatio="none"
-        fill="none"
-      >
-        <defs>
-          <linearGradient id="heroChartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="heroChartLine" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-            <stop offset="100%" stopColor="hsl(160 80% 55%)" stopOpacity="0.9" />
-          </linearGradient>
-        </defs>
-
-        <motion.path
-          d="M0,38 C8,36 12,32 18,30 S28,22 35,24 S48,18 55,20 S68,12 75,14 S88,8 100,6 L100,50 L0,50 Z"
-          fill="url(#heroChartFill)"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.2 }}
-        />
-        <motion.path
-          d="M0,38 C8,36 12,32 18,30 S28,22 35,24 S48,18 55,20 S68,12 75,14 S88,8 100,6"
-          stroke="url(#heroChartLine)"
-          strokeWidth="0.35"
-          vectorEffect="non-scaling-stroke"
-          initial={{ pathLength: 0, opacity: 0.5 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 2.2, ease: "easeOut" }}
-        />
-
-        {CANDLES.map((c, i) => {
-          const yBase = 50 - c.h * 0.35;
-          const bodyTop = c.up ? yBase - c.body * 0.35 : yBase;
-          const bodyH = c.body * 0.35;
-          const color = c.up ? "hsl(160 75% 48%)" : "hsl(0 72% 58%)";
-          return (
-            <g key={i} opacity={0.55 + (i % 3) * 0.12}>
-              <line
-                x1={c.x}
-                x2={c.x}
-                y1={yBase - c.h * 0.35}
-                y2={yBase + 2}
-                stroke={color}
-                strokeWidth="0.15"
-                vectorEffect="non-scaling-stroke"
-              />
-              <motion.rect
-                x={c.x - 0.9}
-                y={bodyTop}
-                width={1.8}
-                height={bodyH}
-                fill={color}
-                initial={{ opacity: 0.4 }}
-                animate={{ opacity: [0.45, 0.95, 0.45] }}
-                transition={{ duration: 2.5 + (i % 4) * 0.3, repeat: Infinity, delay: i * 0.08 }}
-              />
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Scan line */}
-      <motion.div
-        className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
-        animate={{ top: ["18%", "72%", "18%"] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+        className="absolute left-1/2 top-[38%] h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl dark:opacity-50"
+        style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.35) 0%, transparent 70%)" }}
       />
 
-      {/* Floating ticker readouts */}
-      {TICKERS.map((t) => (
-        <motion.div
-          key={t.label}
-          className="absolute rounded-md border border-primary/20 bg-background/40 px-2 py-1 font-mono text-[10px] backdrop-blur-sm sm:text-xs"
-          style={{ left: t.x, top: t.y }}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: [0.35, 0.75, 0.35], y: [0, -4, 0] }}
-          transition={{ duration: 4 + TICKERS.indexOf(t), repeat: Infinity, ease: "easeInOut" }}
-        >
-          <span className="text-muted-foreground">{t.label}</span>{" "}
-          <span className="font-semibold text-primary">{t.value}</span>
-        </motion.div>
-      ))}
+      {/* Dot grid — fixed cell size, fades at edges */}
+      <div
+        className="absolute inset-0 opacity-[0.22] dark:opacity-[0.28]"
+        style={{
+          backgroundImage: "radial-gradient(hsl(var(--primary) / 0.45) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          maskImage: "radial-gradient(ellipse 70% 55% at 50% 45%, black 0%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse 70% 55% at 50% 45%, black 0%, transparent 75%)",
+        }}
+      />
 
-      {/* Neural nodes / order flow */}
-      <svg className="absolute inset-0 h-full w-full opacity-30 dark:opacity-40" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-        {[...Array(6)].map((_, i) => (
-          <motion.circle
-            key={i}
-            cx={15 + i * 14}
-            cy={28 + (i % 3) * 8}
-            r={2}
-            fill="hsl(var(--primary))"
-            animate={{
-              opacity: [0.2, 0.9, 0.2],
-              r: [1.5, 2.5, 1.5],
-            }}
-            transition={{ duration: 2.8, repeat: Infinity, delay: i * 0.35 }}
-          />
-        ))}
-        <motion.polyline
-          points="15,32 29,36 43,30 57,38 71,34 85,40"
-          stroke="hsl(var(--primary))"
-          strokeWidth="0.4"
-          strokeOpacity="0.4"
-          fill="none"
-          strokeDasharray="2 3"
-          vectorEffect="non-scaling-stroke"
-          animate={{ strokeDashoffset: [0, -10] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-        />
-      </svg>
+      {/* Chart panel — centered, fixed aspect ratio */}
+      <div className="absolute bottom-0 left-1/2 w-full max-w-5xl -translate-x-1/2 px-4 pb-2 sm:px-6">
+        <div className="relative mx-auto aspect-[800/220] w-full max-h-[min(28vh,220px)]">
+          <svg
+            className="h-full w-full opacity-55 dark:opacity-70"
+            viewBox="0 0 800 220"
+            preserveAspectRatio="xMidYMid meet"
+            fill="none"
+          >
+            <defs>
+              <linearGradient id="heroChartFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="heroChartLine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="hsl(160 75% 48%)" stopOpacity="0.95" />
+              </linearGradient>
+            </defs>
 
-      {/* Top vignette for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background/70 to-transparent" />
+            {/* Horizontal grid lines */}
+            {[40, 80, 120, 160].map((y) => (
+              <line
+                key={y}
+                x1={32}
+                x2={768}
+                y1={y}
+                y2={y}
+                stroke="hsl(var(--primary))"
+                strokeOpacity={0.12}
+                strokeWidth={1}
+              />
+            ))}
+
+            <motion.path
+              d="M32,148 C120,132 180,118 260,108 S420,78 520,72 S660,48 768,38 L768,200 L32,200 Z"
+              fill="url(#heroChartFill)"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1 }}
+            />
+            <motion.path
+              d="M32,148 C120,132 180,118 260,108 S420,78 520,72 S660,48 768,38"
+              stroke="url(#heroChartLine)"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 2, ease: "easeOut" }}
+            />
+
+            {CANDLES.map((c, i) => {
+              const yBase = 188;
+              const top = yBase - c.h;
+              const bodyTop = c.up ? yBase - c.body : yBase - c.body;
+              const color = c.up ? "hsl(160 72% 42%)" : "hsl(0 68% 52%)";
+              return (
+                <g key={i} opacity={0.7}>
+                  <line x1={c.x} x2={c.x} y1={top} y2={yBase} stroke={color} strokeWidth={1} />
+                  <motion.rect
+                    x={c.x - 5}
+                    y={bodyTop}
+                    width={10}
+                    height={c.body}
+                    rx={1}
+                    fill={color}
+                    animate={{ opacity: [0.5, 0.95, 0.5] }}
+                    transition={{ duration: 2.4 + (i % 3) * 0.2, repeat: Infinity, delay: i * 0.06 }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
+      {/* Readability fade over hero text */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/75 to-transparent" />
     </div>
   );
 }
