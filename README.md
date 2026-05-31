@@ -23,6 +23,7 @@ Market Mind PM is a project management workspace with:
 - Excel: `xlsx` + `multer`
 - Report export: `jsPDF` (with programmatic Gantt rendering)
 
+
 ## Prerequisites
 
 - Node.js 20+
