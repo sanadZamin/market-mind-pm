@@ -36,7 +36,6 @@ Market Mind PM is a project management workspace with:
 pnpm install
 ```
 
-
 ## Run Locally
 
 ### 1) API server
