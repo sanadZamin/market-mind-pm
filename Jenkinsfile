@@ -13,6 +13,7 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20'))
         timeout(time: 60, unit: 'MINUTES')
         timestamps()
+        
     }
 
     parameters {
