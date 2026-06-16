@@ -131,6 +131,12 @@ COMPOSE_LOCAL="${WORKSPACE}/deploy/docker-compose.yaml"
 NGINX_LOCAL="${WORKSPACE}/nginx.conf"
 echo "Deploy → ${TARGET}:${DEPLOY_DIR} (IMAGE_API=${IMAGE_API} IMAGE_WEB=${IMAGE_WEB})"
 
+if [[ "${DEPLOY_DIR}" == *jenkins_home* ]] || [[ "${DEPLOY_DIR}" == *workspace* ]]; then
+  echo "ERROR: DEPLOY_DIR=${DEPLOY_DIR} looks like a Jenkins workspace."
+  echo "       Set Jenkins parameter DEPLOY_DIR to the server path, e.g. /root/dev/frontend"
+  exit 1
+fi
+
 test -f "${COMPOSE_LOCAL}" || { echo "ERROR: missing ${COMPOSE_LOCAL}"; exit 1; }
 test -f "${NGINX_LOCAL}" || { echo "ERROR: missing ${NGINX_LOCAL}"; exit 1; }
 
@@ -141,6 +147,11 @@ test -f "${NGINX_LOCAL}" || { echo "ERROR: missing ${NGINX_LOCAL}"; exit 1; }
 "${SSH[@]}" "$TARGET" bash -s <<EOF
 set -euo pipefail
 cd "${DEPLOY_DIR}"
+if [ ! -f .env ]; then
+  echo "ERROR: ${DEPLOY_DIR}/.env not found on deploy host."
+  echo "       Create it with at least PGPASSWORD (and SMTP_* / PM_TOOL_BASE_URL if needed)."
+  exit 1
+fi
 export IMAGE_TAG="${IMAGE_TAG}"
 export DOCKER_REPO_API="${DOCKER_REPO_API}"
 export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"

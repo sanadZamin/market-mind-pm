@@ -9,9 +9,18 @@ docker-compose -f <COMPOSE_FILE> up -d
 
 ## On the server
 
-- Compose file at e.g. `/root/dev/frontend/docker-compose.yaml` (overwritten each deploy from this repo)
-- `.env` for secrets (PGPASSWORD, SMTP_*, etc.) — not touched by Jenkins
-- Images: `IMAGE_API` / `IMAGE_WEB` = `DOCKER_REPO_*:BUILD_NUMBER`
+- Compose + `nginx.conf` at e.g. `/root/dev/frontend/` (synced each deploy from this repo)
+- **`.env` in that same directory** (never overwritten by Jenkins) with secrets, e.g.:
+
+```env
+PGPASSWORD=your-postgres-password
+SMTP_HOST=smtp.resend.com
+SMTP_PASS=re_...
+EMAIL_FROM=notifications@yourdomain.com
+PM_TOOL_BASE_URL=https://market-mind.com/pm
+```
+
+- **Do not** set Jenkins `DEPLOY_DIR` to a Jenkins workspace path (`/var/jenkins_home/workspace/...`). Use the path on the deploy host, default `/root/dev/frontend`.
 
 ### `Get "http:": http: no Host in request URL`
 

@@ -6,23 +6,19 @@ services:
   springapi:
     image: ${IMAGE_API:?set IMAGE_API}
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       PORT: 8081
       PGHOST: ${PGHOST:-hayyah-postgres}
       PGPORT: ${PGPORT:-5432}
       PGDATABASE: ${PGDATABASE:-marketmind}
       PGUSER: ${PGUSER:-postgres}
-      PGPASSWORD: ${PGPASSWORD:?set PGPASSWORD}
-      SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USER: ${SMTP_USER:-resend}
-      SMTP_PASS: ${SMTP_PASS:-}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
       SMTP_SECURE: ${SMTP_SECURE:-true}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-      EMAIL_FROM: ${EMAIL_FROM:-}
       EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-/app/assets/logo.png}
-      PM_TOOL_BASE_URL: ${PM_TOOL_BASE_URL:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
       OLLAMA_THINK: ${OLLAMA_THINK:-false}
