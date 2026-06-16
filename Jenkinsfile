@@ -133,60 +133,62 @@ if [[ "${DEPLOY_DIR}" == *jenkins_home* ]] || [[ "${DEPLOY_DIR}" == *workspace* 
   exit 1
 fi
 
-"${SSH[@]}" "$TARGET" bash -s <<EOF
+"${SSH[@]}" "$TARGET" \
+  DEPLOY_DIR="${DEPLOY_DIR}" \
+  COMPOSE_FILE="${COMPOSE_FILE}" \
+  IMAGE_TAG="${IMAGE_TAG}" \
+  DOCKER_REPO_API="${DOCKER_REPO_API}" \
+  DOCKER_REPO_WEB="${DOCKER_REPO_WEB}" \
+  IMAGE_API="${IMAGE_API}" \
+  IMAGE_WEB="${IMAGE_WEB}" \
+  bash -s <<'REMOTE_EOF'
 set -euo pipefail
-DEPLOY_DIR="${DEPLOY_DIR}"
-COMPOSE_PATH="\${DEPLOY_DIR}/${COMPOSE_FILE}"
-ENV_PATH="\${DEPLOY_DIR}/.env"
-export IMAGE_TAG="${IMAGE_TAG}"
-export DOCKER_REPO_API="${DOCKER_REPO_API}"
-export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
-export IMAGE_API="${IMAGE_API}"
-export IMAGE_WEB="${IMAGE_WEB}"
+COMPOSE_PATH="${DEPLOY_DIR}/${COMPOSE_FILE}"
+ENV_PATH="${DEPLOY_DIR}/.env"
 
-if [ ! -f "\${COMPOSE_PATH}" ]; then
-  echo "ERROR: compose file not found at \${COMPOSE_PATH}"
+if [ ! -f "${COMPOSE_PATH}" ]; then
+  echo "ERROR: compose file not found at ${COMPOSE_PATH}"
   exit 1
 fi
 
 compose() {
   local env_args=()
-  if [ -f "\${ENV_PATH}" ]; then
-    env_args=(--env-file "\${ENV_PATH}")
+  if [ -f "${ENV_PATH}" ]; then
+    env_args=(--env-file "${ENV_PATH}")
   fi
   if docker compose version >/dev/null 2>&1; then
-    docker compose --project-directory "\${DEPLOY_DIR}" "\${env_args[@]}" -f "\${COMPOSE_PATH}" "\$@"
-  elif docker-compose --project-directory "\${DEPLOY_DIR}" version >/dev/null 2>&1; then
-    docker-compose --project-directory "\${DEPLOY_DIR}" "\${env_args[@]}" -f "\${COMPOSE_PATH}" "\$@"
+    docker compose --project-directory "${DEPLOY_DIR}" "${env_args[@]}" -f "${COMPOSE_PATH}" "$@"
+  elif docker-compose --project-directory "${DEPLOY_DIR}" version >/dev/null 2>&1; then
+    docker-compose --project-directory "${DEPLOY_DIR}" "${env_args[@]}" -f "${COMPOSE_PATH}" "$@"
   else
-    docker-compose "\${env_args[@]}" -f "\${COMPOSE_PATH}" "\$@"
+    docker-compose "${env_args[@]}" -f "${COMPOSE_PATH}" "$@"
   fi
 }
 
-echo "On host: DEPLOY_DIR=\${DEPLOY_DIR}"
-echo "  COMPOSE_PATH=\${COMPOSE_PATH}"
-if [ -f "\${ENV_PATH}" ]; then
-  echo "  ENV_PATH=\${ENV_PATH} (found)"
+echo "On host: DEPLOY_DIR=${DEPLOY_DIR}"
+echo "  COMPOSE_PATH=${COMPOSE_PATH}"
+if [ -f "${ENV_PATH}" ]; then
+  echo "  ENV_PATH=${ENV_PATH} (found)"
 else
-  echo "  ENV_PATH=\${ENV_PATH} (not found — compose + shell env only)"
+  echo "  ENV_PATH=${ENV_PATH} (not found — compose + shell env only)"
 fi
-echo "  IMAGE_API=\${IMAGE_API}"
-echo "  IMAGE_WEB=\${IMAGE_WEB}"
+echo "  IMAGE_API=${IMAGE_API}"
+echo "  IMAGE_WEB=${IMAGE_WEB}"
 
 compose config >/dev/null
 compose pull
 if ! compose up -d; then
   echo "=== deploy failed — springapi logs (last 150 lines) ==="
   compose logs --tail=150 springapi || true
-  cid=\$(compose ps -q springapi 2>/dev/null || true)
-  if [ -n "\$cid" ]; then
-    docker inspect "\$cid" --format 'State={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
-    docker inspect "\$cid" --format '{{range .State.Health.Log}}  {{.ExitCode}} {{.Output}}{{println}}{{end}}' 2>/dev/null || true
+  cid=$(compose ps -q springapi 2>/dev/null || true)
+  if [ -n "$cid" ]; then
+    docker inspect "$cid" --format 'State={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+    docker inspect "$cid" --format '{{range .State.Health.Log}}  {{.ExitCode}} {{.Output}}{{println}}{{end}}' 2>/dev/null || true
   fi
   exit 1
 fi
 compose ps
-EOF
+REMOTE_EOF
 '''
                     }
                     if (credId) {
