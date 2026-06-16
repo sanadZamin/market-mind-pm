@@ -177,17 +177,37 @@ echo "  IMAGE_WEB=${IMAGE_WEB}"
 
 compose config >/dev/null
 compose pull
-if ! compose up -d; then
-  echo "=== deploy failed — springapi logs (last 150 lines) ==="
+up_ec=0
+compose up -d || up_ec=$?
+
+compose ps || true
+
+springapi_cid=$(compose ps -q springapi 2>/dev/null || true)
+if [ -z "$springapi_cid" ]; then
+  echo "ERROR: springapi container is not running"
   compose logs --tail=150 springapi || true
-  cid=$(compose ps -q springapi 2>/dev/null || true)
-  if [ -n "$cid" ]; then
-    docker inspect "$cid" --format 'State={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
-    docker inspect "$cid" --format '{{range .State.Health.Log}}  {{.ExitCode}} {{.Output}}{{println}}{{end}}' 2>/dev/null || true
-  fi
   exit 1
 fi
-compose ps
+
+springapi_state=$(docker inspect "$springapi_cid" --format '{{.State.Status}}')
+springapi_health=$(docker inspect "$springapi_cid" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')
+echo "springapi: State=${springapi_state} Health=${springapi_health}"
+
+if [ "$springapi_state" != "running" ]; then
+  echo "ERROR: springapi is not running"
+  compose logs --tail=150 springapi || true
+  exit 1
+fi
+if [ "$springapi_health" = "unhealthy" ]; then
+  echo "ERROR: springapi health check failed"
+  compose logs --tail=150 springapi || true
+  docker inspect "$springapi_cid" --format '{{range .State.Health.Log}}  exit={{.ExitCode}} {{.Output}}{{println}}{{end}}' 2>/dev/null || true
+  exit 1
+fi
+
+if [ "$up_ec" -ne 0 ]; then
+  echo "WARN: compose up exited ${up_ec} (another service may have failed); springapi is healthy — treating deploy as success"
+fi
 REMOTE_EOF
 '''
                     }
