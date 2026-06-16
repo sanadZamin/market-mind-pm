@@ -1,15 +1,10 @@
-# Legacy example — prefer deploy/docker-compose.yaml (Jenkins syncs it to the host).
-# Jenkins Deploy stage exports IMAGE_API and IMAGE_WEB before pull/up.
-#
-# Prerequisites on host:
-#   - docker-compose (classic CLI) or docker compose v2
-#   - docker login (or pull via Jenkins only — ensure host can pull private images)
-#   - Postgres reachable (external container or add a db service)
-#   - nginx.conf in this directory if using the nginx service below
+# Production compose — synced to the deploy host by Jenkins (see Jenkinsfile Deploy stage).
+# Secrets (PGPASSWORD, SMTP_*, etc.) stay in DEPLOY_DIR/.env on the server.
+# Jenkins exports IMAGE_API and IMAGE_WEB before pull/up.
 
 services:
   springapi:
-    image: ${IMAGE_API:-altshiftcreative/marketmind-springapi:latest}
+    image: ${IMAGE_API:?set IMAGE_API}
     restart: unless-stopped
     environment:
       PORT: 8081
@@ -41,7 +36,7 @@ services:
       start_period: 90s
 
   web:
-    image: ${IMAGE_WEB:-altshiftcreative/marketmind-web:latest}
+    image: ${IMAGE_WEB:?set IMAGE_WEB}
     restart: unless-stopped
     ports:
       - "84:80"

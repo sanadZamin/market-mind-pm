@@ -4,7 +4,7 @@
  * Credentials: dockerhub-deploy (Docker Hub)
  * Deploy key: mount /var/jenkins_home/.ssh/id_deploy or set DEPLOY_SSH_CREDENTIALS_ID
  *
- * Server: compose file in DEPLOY_DIR must use ${IMAGE_TAG}, ${DOCKER_REPO_API}, ${DOCKER_REPO_WEB}
+ * Server: Jenkins syncs deploy/docker-compose.yaml; exports IMAGE_API / IMAGE_WEB (repo:tag)
  */
 pipeline {
     agent any
@@ -93,26 +93,63 @@ echo "Push complete."
 set -euo pipefail
 
 SSH=(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
+SCP=(scp -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
 if [ -n "${SSH_AUTH_SOCK:-}" ] && ssh-add -l >/dev/null 2>&1; then
   echo "SSH: using agent"
 elif [ -f "${DEPLOY_SSH_KEY}" ]; then
   echo "SSH: using key ${DEPLOY_SSH_KEY}"
   SSH+=(-i "${DEPLOY_SSH_KEY}")
+  SCP+=(-i "${DEPLOY_SSH_KEY}")
 else
   echo "ERROR: no SSH key at ${DEPLOY_SSH_KEY} and no ssh-agent key"
   exit 1
 fi
 
+if [ -z "${DOCKER_REPO_API// /}" ] || [ -z "${DOCKER_REPO_WEB// /}" ] || [ -z "${IMAGE_TAG// /}" ]; then
+  echo "ERROR: DOCKER_REPO_API, DOCKER_REPO_WEB, and IMAGE_TAG must be non-empty"
+  echo "  DOCKER_REPO_API=${DOCKER_REPO_API:-<empty>}"
+  echo "  DOCKER_REPO_WEB=${DOCKER_REPO_WEB:-<empty>}"
+  echo "  IMAGE_TAG=${IMAGE_TAG:-<empty>}"
+  exit 1
+fi
+
+case "${DOCKER_REPO_API}:${IMAGE_TAG}" in
+  http:*|https:*|:*|*":")
+    echo "ERROR: invalid IMAGE_API ref: ${DOCKER_REPO_API}:${IMAGE_TAG}"
+    exit 1
+    ;;
+esac
+case "${DOCKER_REPO_WEB}:${IMAGE_TAG}" in
+  http:*|https:*|:*|*":")
+    echo "ERROR: invalid IMAGE_WEB ref: ${DOCKER_REPO_WEB}:${IMAGE_TAG}"
+    exit 1
+    ;;
+esac
+
 TARGET="${DEPLOY_USER}@${DEPLOY_HOST}"
-echo "Deploy → ${TARGET}:${DEPLOY_DIR} (IMAGE_TAG=${IMAGE_TAG})"
+COMPOSE_LOCAL="${WORKSPACE}/deploy/docker-compose.yaml"
+NGINX_LOCAL="${WORKSPACE}/nginx.conf"
+echo "Deploy → ${TARGET}:${DEPLOY_DIR} (IMAGE_API=${IMAGE_API} IMAGE_WEB=${IMAGE_WEB})"
+
+test -f "${COMPOSE_LOCAL}" || { echo "ERROR: missing ${COMPOSE_LOCAL}"; exit 1; }
+test -f "${NGINX_LOCAL}" || { echo "ERROR: missing ${NGINX_LOCAL}"; exit 1; }
+
+"${SSH[@]}" "$TARGET" "mkdir -p '${DEPLOY_DIR}'"
+"${SCP[@]}" "${COMPOSE_LOCAL}" "${TARGET}:${DEPLOY_DIR}/${COMPOSE_FILE}"
+"${SCP[@]}" "${NGINX_LOCAL}" "${TARGET}:${DEPLOY_DIR}/nginx.conf"
 
 "${SSH[@]}" "$TARGET" bash -s <<EOF
-set -e
+set -euo pipefail
 cd "${DEPLOY_DIR}"
 export IMAGE_TAG="${IMAGE_TAG}"
 export DOCKER_REPO_API="${DOCKER_REPO_API}"
 export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
-echo "On host: pwd=\$(pwd) IMAGE_TAG=\${IMAGE_TAG}"
+export IMAGE_API="${IMAGE_API}"
+export IMAGE_WEB="${IMAGE_WEB}"
+echo "On host: pwd=\$(pwd)"
+echo "  IMAGE_API=\${IMAGE_API}"
+echo "  IMAGE_WEB=\${IMAGE_WEB}"
+docker-compose -f "${COMPOSE_FILE}" config >/dev/null
 docker-compose -f "${COMPOSE_FILE}" pull
 docker-compose -f "${COMPOSE_FILE}" up -d
 docker-compose -f "${COMPOSE_FILE}" ps

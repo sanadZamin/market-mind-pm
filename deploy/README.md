@@ -1,6 +1,6 @@
 # Remote deploy
 
-Jenkins **Deploy** stage SSHs to the host, `cd`s into **DEPLOY_DIR**, exports **IMAGE_TAG** / **DOCKER_REPO_***, then:
+Jenkins **Deploy** stage copies `deploy/docker-compose.yaml` and `nginx.conf` to **DEPLOY_DIR**, exports **IMAGE_API** / **IMAGE_WEB**, then:
 
 ```bash
 docker-compose -f <COMPOSE_FILE> pull
@@ -9,9 +9,13 @@ docker-compose -f <COMPOSE_FILE> up -d
 
 ## On the server
 
-- Compose file at e.g. `/root/dev/frontend/docker-compose.yaml`
-- Images tagged with `${IMAGE_TAG}` (build number from Jenkins)
-- `.env` for secrets (PGPASSWORD, etc.)
+- Compose file at e.g. `/root/dev/frontend/docker-compose.yaml` (overwritten each deploy from this repo)
+- `.env` for secrets (PGPASSWORD, SMTP_*, etc.) — not touched by Jenkins
+- Images: `IMAGE_API` / `IMAGE_WEB` = `DOCKER_REPO_*:BUILD_NUMBER`
+
+### `Get "http:": http: no Host in request URL`
+
+Usually a bad image reference on the host, e.g. `DOCKER_REPO_API=http:` in `.env` or a compose `image:` line that prefixes a registry URL incorrectly. The Jenkins deploy now syncs `deploy/docker-compose.yaml` (uses `${IMAGE_API}` / `${IMAGE_WEB}` only) and validates refs before pull.
 
 ## Jenkins parameters
 
