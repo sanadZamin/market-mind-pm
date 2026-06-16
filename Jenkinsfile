@@ -4,7 +4,7 @@
  * Credentials: dockerhub-deploy (Docker Hub)
  * Deploy key: mount /var/jenkins_home/.ssh/id_deploy or set DEPLOY_SSH_CREDENTIALS_ID
  *
- * Server: Jenkins syncs deploy/docker-compose.yaml; exports IMAGE_API / IMAGE_WEB (repo:tag)
+ * Server: compose + .env + nginx.conf live in DEPLOY_DIR on the host (Jenkins does not copy files).
  */
 pipeline {
     agent any
@@ -93,13 +93,11 @@ echo "Push complete."
 set -euo pipefail
 
 SSH=(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
-SCP=(scp -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15)
 if [ -n "${SSH_AUTH_SOCK:-}" ] && ssh-add -l >/dev/null 2>&1; then
   echo "SSH: using agent"
 elif [ -f "${DEPLOY_SSH_KEY}" ]; then
   echo "SSH: using key ${DEPLOY_SSH_KEY}"
   SSH+=(-i "${DEPLOY_SSH_KEY}")
-  SCP+=(-i "${DEPLOY_SSH_KEY}")
 else
   echo "ERROR: no SSH key at ${DEPLOY_SSH_KEY} and no ssh-agent key"
   exit 1
@@ -127,8 +125,6 @@ case "${DOCKER_REPO_WEB}:${IMAGE_TAG}" in
 esac
 
 TARGET="${DEPLOY_USER}@${DEPLOY_HOST}"
-COMPOSE_LOCAL="${WORKSPACE}/deploy/docker-compose.yaml"
-NGINX_LOCAL="${WORKSPACE}/nginx.conf"
 echo "Deploy → ${TARGET}:${DEPLOY_DIR} (IMAGE_API=${IMAGE_API} IMAGE_WEB=${IMAGE_WEB})"
 
 if [[ "${DEPLOY_DIR}" == *jenkins_home* ]] || [[ "${DEPLOY_DIR}" == *workspace* ]]; then
@@ -137,33 +133,59 @@ if [[ "${DEPLOY_DIR}" == *jenkins_home* ]] || [[ "${DEPLOY_DIR}" == *workspace* 
   exit 1
 fi
 
-test -f "${COMPOSE_LOCAL}" || { echo "ERROR: missing ${COMPOSE_LOCAL}"; exit 1; }
-test -f "${NGINX_LOCAL}" || { echo "ERROR: missing ${NGINX_LOCAL}"; exit 1; }
-
-"${SSH[@]}" "$TARGET" "mkdir -p '${DEPLOY_DIR}'"
-"${SCP[@]}" "${COMPOSE_LOCAL}" "${TARGET}:${DEPLOY_DIR}/${COMPOSE_FILE}"
-"${SCP[@]}" "${NGINX_LOCAL}" "${TARGET}:${DEPLOY_DIR}/nginx.conf"
-
 "${SSH[@]}" "$TARGET" bash -s <<EOF
 set -euo pipefail
-cd "${DEPLOY_DIR}"
-if [ ! -f .env ]; then
-  echo "ERROR: ${DEPLOY_DIR}/.env not found on deploy host."
-  echo "       Create it with at least PGPASSWORD (and SMTP_* / PM_TOOL_BASE_URL if needed)."
-  exit 1
-fi
+DEPLOY_DIR="${DEPLOY_DIR}"
+COMPOSE_PATH="\${DEPLOY_DIR}/${COMPOSE_FILE}"
+ENV_PATH="\${DEPLOY_DIR}/.env"
 export IMAGE_TAG="${IMAGE_TAG}"
 export DOCKER_REPO_API="${DOCKER_REPO_API}"
 export DOCKER_REPO_WEB="${DOCKER_REPO_WEB}"
 export IMAGE_API="${IMAGE_API}"
 export IMAGE_WEB="${IMAGE_WEB}"
-echo "On host: pwd=\$(pwd)"
+
+if [ ! -f "\${COMPOSE_PATH}" ]; then
+  echo "ERROR: compose file not found at \${COMPOSE_PATH}"
+  exit 1
+fi
+
+compose() {
+  local env_args=()
+  if [ -f "\${ENV_PATH}" ]; then
+    env_args=(--env-file "\${ENV_PATH}")
+  fi
+  if docker compose version >/dev/null 2>&1; then
+    docker compose --project-directory "\${DEPLOY_DIR}" "\${env_args[@]}" -f "\${COMPOSE_PATH}" "\$@"
+  elif docker-compose --project-directory "\${DEPLOY_DIR}" version >/dev/null 2>&1; then
+    docker-compose --project-directory "\${DEPLOY_DIR}" "\${env_args[@]}" -f "\${COMPOSE_PATH}" "\$@"
+  else
+    docker-compose "\${env_args[@]}" -f "\${COMPOSE_PATH}" "\$@"
+  fi
+}
+
+echo "On host: DEPLOY_DIR=\${DEPLOY_DIR}"
+echo "  COMPOSE_PATH=\${COMPOSE_PATH}"
+if [ -f "\${ENV_PATH}" ]; then
+  echo "  ENV_PATH=\${ENV_PATH} (found)"
+else
+  echo "  ENV_PATH=\${ENV_PATH} (not found — compose + shell env only)"
+fi
 echo "  IMAGE_API=\${IMAGE_API}"
 echo "  IMAGE_WEB=\${IMAGE_WEB}"
-docker-compose -f "${COMPOSE_FILE}" config >/dev/null
-docker-compose -f "${COMPOSE_FILE}" pull
-docker-compose -f "${COMPOSE_FILE}" up -d
-docker-compose -f "${COMPOSE_FILE}" ps
+
+compose config >/dev/null
+compose pull
+if ! compose up -d; then
+  echo "=== deploy failed — springapi logs (last 150 lines) ==="
+  compose logs --tail=150 springapi || true
+  cid=\$(compose ps -q springapi 2>/dev/null || true)
+  if [ -n "\$cid" ]; then
+    docker inspect "\$cid" --format 'State={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+    docker inspect "\$cid" --format '{{range .State.Health.Log}}  {{.ExitCode}} {{.Output}}{{println}}{{end}}' 2>/dev/null || true
+  fi
+  exit 1
+fi
+compose ps
 EOF
 '''
                     }

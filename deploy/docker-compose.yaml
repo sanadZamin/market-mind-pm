@@ -1,6 +1,5 @@
-# Production compose — synced to the deploy host by Jenkins (see Jenkinsfile Deploy stage).
-# Secrets (PGPASSWORD, SMTP_*, etc.) stay in DEPLOY_DIR/.env on the server.
-# Jenkins exports IMAGE_API and IMAGE_WEB before pull/up.
+# Reference compose for manual / server setup — Jenkins does NOT copy this to the host.
+# Edit the copy in DEPLOY_DIR on your server. Jenkins exports IMAGE_API / IMAGE_WEB before pull/up.
 
 services:
   springapi:
@@ -10,26 +9,18 @@ services:
       - .env
     environment:
       PORT: 8081
-      PGHOST: ${PGHOST:-hayyah-postgres}
-      PGPORT: ${PGPORT:-5432}
-      PGDATABASE: ${PGDATABASE:-marketmind}
-      PGUSER: ${PGUSER:-postgres}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER:-resend}
-      SMTP_SECURE: ${SMTP_SECURE:-true}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-      EMAIL_LOGO_PATH: ${EMAIL_LOGO_PATH:-/app/assets/logo.png}
+      EMAIL_LOGO_PATH: /app/assets/logo.png
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
       OLLAMA_THINK: ${OLLAMA_THINK:-false}
     expose:
       - "8081/tcp"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8081/api/actuator/health/liveness >/dev/null || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 90s
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8081/api/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
 
   web:
     image: ${IMAGE_WEB:?set IMAGE_WEB}

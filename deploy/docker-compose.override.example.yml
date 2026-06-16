@@ -1,0 +1,15 @@
+# Optional server-side override (copy to DEPLOY_DIR/docker-compose.override.yml).
+# Jenkins does not overwrite override files — compose merges them automatically.
+#
+# Use when Postgres runs as hayyah-postgres on an external Docker network (not host :5432).
+
+services:
+  springapi:
+    networks:
+      - default
+      - postgres
+
+networks:
+  postgres:
+    external: true
+    name: hayyah_default
