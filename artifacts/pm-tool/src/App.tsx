@@ -10,7 +10,9 @@ import Login from "@/pages/login";
 import TechnologyLanding from "@/pages/technology-landing";
 import ResourcesLanding from "@/pages/resources-landing";
 import FeatureDemo from "@/pages/feature-demo";
+import Maintenance from "@/pages/maintenance";
 import { getSignInPath } from "@/lib/app-entry";
+import { isMarketingMaintenanceMode } from "@/lib/marketing-maintenance";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
@@ -18,6 +20,7 @@ import ProjectDetail from "@/pages/project-detail";
 const queryClient = new QueryClient();
 
 const signInPath = getSignInPath();
+const marketingMaintenance = isMarketingMaintenanceMode();
 
 function RegisterToLoginRedirect() {
   const [, setLocation] = useLocation();
@@ -38,11 +41,22 @@ function PricingRedirect() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={TechnologyLanding} />
-      <Route path="/pricing" component={PricingRedirect} />
-      <Route path="/resources" component={ResourcesLanding} />
+      {marketingMaintenance ? (
+        <>
+          <Route path="/" component={Maintenance} />
+          <Route path="/pricing" component={Maintenance} />
+          <Route path="/resources" component={Maintenance} />
+          <Route path="/demo" component={Maintenance} />
+        </>
+      ) : (
+        <>
+          <Route path="/" component={TechnologyLanding} />
+          <Route path="/pricing" component={PricingRedirect} />
+          <Route path="/resources" component={ResourcesLanding} />
+          <Route path="/demo" component={FeatureDemo} />
+        </>
+      )}
       <Route path={signInPath} component={Login} />
-      <Route path="/demo" component={FeatureDemo} />
       <Route path="/register" component={RegisterToLoginRedirect} />
 
       <Route path="/dashboard">

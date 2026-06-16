@@ -18,9 +18,10 @@ RUN pnpm install --frozen-lockfile
 # Sign-in URL path segment baked at build time (no leading slash), e.g. mm-workbench -> /pm/mm-workbench
 ARG VITE_PM_SIGNIN_PATH=login
 ARG BASE_PATH=/pm
+ARG VITE_MARKETING_MAINTENANCE=true
 
 # PORT is only used by the dev server, not the build output
-RUN PORT=3000 BASE_PATH=${BASE_PATH} VITE_PM_SIGNIN_PATH=${VITE_PM_SIGNIN_PATH} pnpm --filter @workspace/pm-tool run build
+RUN PORT=3000 BASE_PATH=${BASE_PATH} VITE_PM_SIGNIN_PATH=${VITE_PM_SIGNIN_PATH} VITE_MARKETING_MAINTENANCE=${VITE_MARKETING_MAINTENANCE} pnpm --filter @workspace/pm-tool run build
 
 FROM --platform=linux/amd64 nginx:alpine
 COPY --from=builder /app/artifacts/pm-tool/dist/public /usr/share/nginx/html

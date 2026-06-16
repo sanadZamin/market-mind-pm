@@ -21,6 +21,7 @@ pipeline {
         booleanParam(name: 'BUILD_WEB', defaultValue: true, description: 'Build and push web image')
         booleanParam(name: 'PUSH_LATEST', defaultValue: true, description: 'Also push :latest')
         string(name: 'VITE_PM_BASE_PATH', defaultValue: '/pm', description: 'Web build BASE_PATH')
+        booleanParam(name: 'VITE_MARKETING_MAINTENANCE', defaultValue: true, description: 'Show maintenance screen on marketing routes')
         string(name: 'DEPLOY_HOST', defaultValue: '149.102.140.178', description: 'Deploy host')
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user')
         string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/frontend', description: 'Directory with docker-compose on host')
@@ -38,6 +39,7 @@ pipeline {
         BUILD_WEB = "${params.BUILD_WEB}"
         PUSH_LATEST = "${params.PUSH_LATEST}"
         VITE_PM_BASE_PATH = "${params.VITE_PM_BASE_PATH}"
+        VITE_MARKETING_MAINTENANCE = "${params.VITE_MARKETING_MAINTENANCE}"
         DEPLOY_HOST = "${params.DEPLOY_HOST}"
         DEPLOY_USER = "${params.DEPLOY_USER}"
         DEPLOY_DIR = "${params.DEPLOY_DIR?.trim() ?: '/root/dev/frontend'}"
@@ -73,7 +75,8 @@ if [ "${BUILD_WEB}" = "true" ]; then
   [ "${PUSH_LATEST}" = "true" ] && web_tags="$web_tags -t ${DOCKER_REPO_WEB}:latest"
   echo "Building web → ${IMAGE_WEB}"
   docker buildx build --platform linux/amd64 $web_tags -f Dockerfile.web \
-    --build-arg VITE_PM_SIGNIN_PATH=login --build-arg BASE_PATH="${VITE_PM_BASE_PATH}" --push .
+    --build-arg VITE_PM_SIGNIN_PATH=login --build-arg BASE_PATH="${VITE_PM_BASE_PATH}" \
+    --build-arg VITE_MARKETING_MAINTENANCE="${VITE_MARKETING_MAINTENANCE}" --push .
 fi
 echo "Push complete."
 '''
