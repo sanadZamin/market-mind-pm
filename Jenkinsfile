@@ -13,7 +13,7 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20'))
         timeout(time: 60, unit: 'MINUTES')
         timestamps()
-        
+
     }
 
     parameters {
@@ -22,7 +22,7 @@ pipeline {
         booleanParam(name: 'BUILD_WEB', defaultValue: true, description: 'Build and push web image')
         booleanParam(name: 'PUSH_LATEST', defaultValue: true, description: 'Also push :latest')
         string(name: 'VITE_PM_BASE_PATH', defaultValue: '/pm', description: 'Web build BASE_PATH')
-        booleanParam(name: 'VITE_MARKETING_MAINTENANCE', defaultValue: true, description: 'Show maintenance screen on marketing routes')
+        booleanParam(name: 'VITE_MARKETING_MAINTENANCE', defaultValue: false, description: 'Show maintenance screen on marketing routes')
         string(name: 'DEPLOY_HOST', defaultValue: '149.102.140.178', description: 'Deploy host')
         string(name: 'DEPLOY_USER', defaultValue: 'root', description: 'SSH user')
         string(name: 'DEPLOY_DIR', defaultValue: '/root/dev/frontend', description: 'Directory with docker-compose on host')
