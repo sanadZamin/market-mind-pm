@@ -6,16 +6,123 @@ import { Button } from "@/components/ui/button";
 import { getSignInPath } from "@/lib/app-entry";
 import { motion } from "framer-motion";
 import {
-  Check,
-  Database,
+  ArrowRight,
+  BadgeCheck,
+  BrainCircuit,
+  FileText,
+  Github,
+  Infinity as InfinityIcon,
+  Layers,
+  LineChart,
   Network,
-  Newspaper,
-  Search,
-  Share2,
-  Zap,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  Users,
+  Workflow,
 } from "lucide-react";
 
 const signInPath = getSignInPath();
+
+const PIPELINE_STAGES = [
+  "Data",
+  "Intelligence",
+  "Alpha",
+  "Portfolio",
+  "Execution",
+  "Risk",
+  "Attribution",
+  "Learning",
+] as const;
+
+const PROBLEM_CARDS = [
+  {
+    icon: BrainCircuit,
+    title: "AI essential to Alpha",
+    body: "Traditional quant funds layer AI onto legacy pipelines. The result: quant funds that can't read earnings calls, macro signals, and news in real time, and systematically underperform.",
+  },
+  {
+    icon: Layers,
+    title: "Fragmented Platforms",
+    body: "No commercial product covers more than 8 of 12 quant lifecycle stages. Data, signals, execution, and learning remain siloed. Top quant and hedge funds will not share their platforms commercially.",
+  },
+  {
+    icon: Users,
+    title: "Traditional Managers Underserved",
+    body: "Managers running $50M–$500M need institutional-grade alpha, risk, execution & reporting — but can't afford a full quant team and infrastructure to build it.",
+  },
+] as const;
+
+const SOLUTION_CARDS = [
+  {
+    badge: "AI",
+    icon: Layers,
+    title: "Hybrid AI Stack",
+    body: "ML for stock ranking · Deep Reinforcement Learning for portfolio allocation · Financial LLMs for language signals · AI agents for orchestration and trading.",
+  },
+  {
+    badge: "12",
+    icon: Workflow,
+    title: "End-to-end 12-Stage trading system",
+    body: "Market environment, regime detection, alpha signals, portfolio construction, trade execution, risk control, performance attribution, strategy iteration.",
+  },
+  {
+    badge: "∞",
+    icon: InfinityIcon,
+    title: "Continuous Learning Loop forms a flywheel",
+    body: "Every trade improves data quality, feature engineering, and signal discovery. Models retrain automatically from live results.",
+  },
+  {
+    badge: "✓",
+    icon: BadgeCheck,
+    title: "Leading open-source team turns commercial",
+    body: "Proven on our own capital via IBKR managed accounts. Every external claim ships with a live track record.",
+  },
+] as const;
+
+const MOATS = [
+  {
+    icon: Github,
+    title: "Open-Source Team & Ecosystem",
+    body: "FinGPT · FinRL · FinRobot: 57K GitHub stars, 200K+ monthly active users — R&D depth job postings can't replicate.",
+  },
+  {
+    icon: Workflow,
+    title: "AI-Native Full Loop",
+    body: "Only product covering all 12 lifecycle stages. Models are common; the closed loop that learns from every trade is rare.",
+  },
+  {
+    icon: FileText,
+    title: "Financial LLM Edge",
+    body: "News, filings, earnings calls, macro — all converted to decay-tracked, quantifiable factors via Financial LLMs.",
+  },
+  {
+    icon: LineChart,
+    title: "Trading Feedback Data",
+    body: "Live trading feedback compounds against the S&P benchmark. As the fund trades, the dataset becomes a moat competitors can't recreate.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Fund-First Validation",
+    body: "We prove the platform on our own capital before selling it. No 'platform before proof' — every claim ships with a live track record.",
+  },
+  {
+    icon: Target,
+    title: "Traditional Manager Wedge",
+    body: "Large funds won't buy an external OS. Mid managers must. We start where build-vs-buy is obvious and price discipline matters.",
+  },
+] as const;
+
+function SectionEyebrow({ index, label }: { index: string; label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
+        {index}
+      </span>
+      <span className="text-xs font-bold uppercase tracking-[0.28em] text-primary">{label}</span>
+    </div>
+  );
+}
 
 function NeuralGlowVisual() {
   return (
@@ -78,210 +185,203 @@ export default function TechnologyLanding() {
       <MarketingNav active="technology" />
 
       <main className="relative">
-        <section className="mx-auto max-w-4xl px-4 pb-20 pt-12 text-center sm:px-6 sm:pt-16 lg:px-8">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
-            Engine: Neural Core v2.0
-          </div>
-          <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl md:text-6xl">
-            The Anatomy of{" "}
-            <span className="font-serif italic font-semibold text-primary">Financial Intelligence</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Market Mind is an AI-native quantitative investment platform that spans the full workflow from data-driven
-            strategy generation to execution. Built by the AI4Finance community, it combines machine learning,
-            reinforcement learning, and financial LLMs to deliver real-time market intelligence and institutional-grade
-            tooling.
-          </p>
-        </section>
-
-        {/* Bento */}
-        <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8 md:min-h-[300px]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Core capability</p>
-              <h2 className="mt-2 font-display text-xl font-bold text-foreground sm:text-2xl">Machine Learning (ML)</h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Our supervised learning models ingest 40+ years of historical market cycles, identifying patterns invisible
-                to human analysts and surfacing regime shifts before they propagate across venues.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-secondary/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
-                  Data ingestion
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-secondary/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Search className="h-3.5 w-3.5 text-primary" aria-hidden />
-                  Pattern recognition
-                </span>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8">
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <h2 className="font-display text-lg font-bold text-foreground sm:text-xl">Predictive Latency</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Execution pipelines are tuned for sub-8ms end-to-end lag with deterministic scheduling across our
-                inference mesh.
-              </p>
-              <div className="mt-6">
-                <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <span>Performance</span>
-                  <span className="text-primary">94.2%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full w-[94.2%] rounded-full bg-gradient-to-r from-primary to-emerald-400" />
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/90">Strategic execution</p>
-              <h2 className="mt-2 font-display text-lg font-bold text-foreground sm:text-xl">Deep Reinforcement Learning (DRL)</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                DRL agents act as autonomous traders within high-fidelity simulators, continuously optimizing policies for
-                alpha generation under realistic microstructure.
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-border/70 bg-secondary/50 px-3 py-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Policy gradient</p>
-                  <p className="mt-1 text-xs font-medium text-foreground">Reward maximization</p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-secondary/50 px-3 py-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Q-learning</p>
-                  <p className="mt-1 text-xs font-medium text-foreground">State-action maps</p>
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/90">Cognitive processing</p>
-              <h2 className="mt-2 font-display text-lg font-bold text-foreground sm:text-xl">Semantic Intelligence</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Our large language models scan thousands of news outlets, social signals, and SEC filings to produce
-                structured sentiment scores and event graphs.
-              </p>
-              <div className="mt-5 flex items-center gap-3 text-muted-foreground/70">
-                <Newspaper className="h-4 w-4" aria-hidden />
-                <Share2 className="h-4 w-4" aria-hidden />
-                <span className="text-lg font-bold leading-none text-muted-foreground/60">𝕏</span>
-              </div>
-              <p className="mt-4 text-[10px] font-semibold uppercase tracking-widest text-primary/90">
-                Cross-signal correlation
-              </p>
-            </article>
-          </div>
-        </section>
-
-        {/* Five-layer architecture */}
-        <section className="border-y border-border/70 bg-secondary/30 py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <p className="text-center text-xs font-bold uppercase tracking-[0.25em] text-primary">
-              Unified platform architecture
-            </p>
-            <h2 className="mx-auto mt-3 max-w-2xl text-center font-display text-2xl font-bold text-foreground sm:text-3xl">
-              The symbiotic relationship between raw data, intelligence, and execution.
-            </h2>
-
-            <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <PipelineCard
-                title="Data source layer"
-                body="Real-time market ticks, depth-of-book updates, and institutional news wires normalized into a single chronological stream."
-              />
-              <PipelineCard
-                title="Data engineering layer"
-                body="Sentiment scoring, feature stores, and vector indexes prepared for low-latency retrieval by strategy agents."
-              />
-              <PipelineCard
-                title="Financial LLMs"
-                body="FinGPT, FinMA, and FinML variants specialized for filings, transcripts, and macro commentary — with guardrailed tool use."
-                highlight
-                tags={["FinGPT", "FinMA", "FinML"]}
-              />
-              <PipelineCard
-                title="Task layer"
-                body="Market forecasting jobs, automated research memos, and compliance summaries orchestrated as durable agent workflows."
-              />
-              <PipelineCard
-                title="Foundation models"
-                body="Llama 2, Claude 3, and Gemini adapters with strict tenancy isolation and encrypted weight caches."
-                tags={["Llama 2", "Claude 3", "Gemini"]}
-                className="sm:col-span-2 lg:col-span-1"
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
+        {/* ── HERO ─────────────────────────────────────────────── */}
+        <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pt-16 lg:px-8">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <NeuralGlowVisual />
             <div>
-              <h2 className="font-display text-3xl font-bold leading-tight text-foreground sm:text-4xl">
-                Hyper-Dimensional <span className="text-primary">Risk Management</span>
-              </h2>
-              <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-                Every potential trade is stress-tested against 10,000 synthetic market scenarios. Our DRL engine
-                doesn&apos;t just look for profit; it solves for survivability in extreme tail-risk events.
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
+                AI-Native Quant Fund Operating System
+              </div>
+              <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl md:text-6xl">
+                The Operating System for{" "}
+                <span className="font-serif italic font-semibold text-primary">AI-Native Quant Funds</span>
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Founded by the core technical team behind a leading financial open-source community, Market Mind is
+                one closed loop covering all 12 stages of the quant lifecycle — from raw data to continuous strategy
+                improvement.
               </p>
-              <ul className="mt-8 space-y-4">
-                {["Auto-Hedging Protocols", "Real-Time Slippage Optimization"].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-sm font-medium text-foreground">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15">
-                      <Check className="h-4 w-4 text-primary" strokeWidth={2.5} />
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 rounded-xl bg-primary px-8 font-semibold text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90"
+                >
+                  <Link href={signInPath}>
+                    Get Started
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <a
+                  href="#solution"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-border/70 px-6 text-sm font-semibold text-foreground transition-colors hover:border-primary/45 hover:text-primary"
+                >
+                  See the platform
+                </a>
+              </div>
+
+              {/* Lifecycle pipeline */}
+              <div className="mt-10 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-sm font-medium text-muted-foreground">
+                {PIPELINE_STAGES.map((stage, i) => (
+                  <span key={stage} className="flex items-center gap-1.5">
+                    <span className="rounded-md border border-border/60 bg-secondary/50 px-2.5 py-1 text-foreground">
+                      {stage}
                     </span>
-                    {item}
-                  </li>
+                    {i < PIPELINE_STAGES.length - 1 && <span className="text-primary">→</span>}
+                  </span>
                 ))}
-              </ul>
-              <Button
-                asChild
-                className="mt-10 h-11 rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-lg shadow-primary/20"
-              >
-                <Link href={signInPath}>Get Started</Link>
-              </Button>
+              </div>
             </div>
+
+            <NeuralGlowVisual />
+          </div>
+        </section>
+
+        {/* ── THE PROBLEM ──────────────────────────────────────── */}
+        <section className="border-t border-border/70 py-20 sm:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow index="1" label="The Problem" />
+            <h2 className="mx-auto mt-4 max-w-3xl text-center font-display text-2xl font-bold leading-tight text-foreground sm:text-4xl">
+              Quant Investing Infrastructure Is Broken in the AI Age
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-muted-foreground sm:text-base">
+              AI has changed the signal universe: news, earnings calls, filings, macro, and flows are now
+              machine-readable alpha inputs.
+            </p>
+
+            <div className="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {PROBLEM_CARDS.map(({ icon: Icon, title, body }, i) => (
+                <article
+                  key={title}
+                  className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-7"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="font-display text-2xl font-bold text-primary/30">
+                      0{i + 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 font-display text-lg font-bold text-foreground">{title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                </article>
+              ))}
+            </div>
+
+            {/* Market opportunity */}
+            <div className="mt-6 overflow-hidden rounded-2xl border border-primary/30 bg-primary/[0.06] p-6 shadow-[0_0_40px_-18px_hsl(var(--primary)/0.45)] sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-10">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                  <p className="font-display text-lg font-bold text-foreground">Market Opportunity</p>
+                </div>
+                <div className="grid flex-1 grid-cols-1 gap-6 sm:grid-cols-2">
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Global algorithmic trading is projected to reach{" "}
+                    <span className="font-semibold text-primary">$50B+ by 2030</span>.
+                  </p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    Explosive AI adoption in wealth & asset management — today's top quant firms hold only{" "}
+                    <span className="font-semibold text-primary">~1%</span> of total AUM.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── OUR SOLUTION ─────────────────────────────────────── */}
+        <section id="solution" className="border-y border-border/70 bg-secondary/30 py-20 sm:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow index="2" label="Our Solution" />
+            <h2 className="mx-auto mt-4 max-w-3xl text-center font-display text-2xl font-bold leading-tight text-foreground sm:text-4xl">
+              An AI-Native Quant Fund Operating System
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-muted-foreground sm:text-base">
+              One close loop covering all 12 stages of the quant lifecycle, combining a hybrid AI stack with a
+              continuous learning flywheel.
+            </p>
+
+            <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2">
+              {SOLUTION_CARDS.map(({ badge, icon: Icon, title, body }) => (
+                <article
+                  key={title}
+                  className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm sm:p-8"
+                >
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 font-display text-sm font-bold text-primary">
+                      {badge}
+                    </span>
+                    <Icon className="h-5 w-5 text-primary/70" />
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-foreground sm:text-xl">{title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── WHY WE'RE DIFFERENT ──────────────────────────────── */}
+        <section className="py-20 sm:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow index="3" label="Why We're Different" />
+            <h2 className="mx-auto mt-4 max-w-3xl text-center font-display text-2xl font-bold leading-tight text-foreground sm:text-4xl">
+              Six Compounding Moats. The System Is the Moat.
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-muted-foreground sm:text-base">
+              No competitor covers all 12 stages. Each moat reinforces the next.
+            </p>
+
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {MOATS.map(({ icon: Icon, title, body }, i) => (
+                <article
+                  key={title}
+                  className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 backdrop-blur-sm transition-colors hover:border-primary/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="font-display text-2xl font-bold text-primary/30">
+                      0{i + 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 font-display text-base font-bold text-foreground">{title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── CTA ──────────────────────────────────────────────── */}
+        <section className="border-t border-border/70 py-20 sm:py-24">
+          <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+            <h2 className="font-display text-3xl font-bold leading-tight text-foreground sm:text-4xl">
+              Prove it on capital. Then <span className="text-primary">scale it.</span>
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
+              Every claim ships with a live track record. Step into the operating system built for the AI age of
+              quant investing.
+            </p>
+            <Button
+              asChild
+              size="lg"
+              className="mt-9 h-12 rounded-xl bg-primary px-8 font-semibold text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90"
+            >
+              <Link href={signInPath}>
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </section>
       </main>
 
       <MarketingFooter />
     </MarketingLayout>
-  );
-}
-
-function PipelineCard({
-  title,
-  body,
-  highlight,
-  tags,
-  className = "",
-}: {
-  title: string;
-  body: string;
-  highlight?: boolean;
-  tags?: string[];
-  className?: string;
-}) {
-  return (
-    <div
-      className={`flex flex-col rounded-2xl border bg-card/70 p-5 backdrop-blur-sm ${highlight ? "border-primary/45 shadow-[0_0_32px_-12px_hsl(var(--primary)/0.35)]" : "border-border/70"} ${className}`}
-    >
-      <h3 className="text-[11px] font-bold uppercase tracking-wider text-primary">{title}</h3>
-      <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
-      {tags && tags.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {tags.map((t) => (
-            <span
-              key={t}
-              className="rounded border border-border/70 bg-secondary/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
