@@ -120,6 +120,9 @@ const PROJECT_COLORS = ["#13eac1", "#23a7e5", "#003d30", "#0db99a", "#10b981", "
 
 const ALL_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "in_review", "done"];
 
+// Statuses shown by default before the user changes the filter.
+const DEFAULT_TASK_STATUSES: TaskStatus[] = ["todo", "in_progress"];
+
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
@@ -132,7 +135,7 @@ export default function ProjectDetail() {
   const { toast } = useToast();
 
   const [view, setView]                 = useState("board");
-  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(() => new Set(ALL_TASK_STATUSES));
+  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(() => new Set(DEFAULT_TASK_STATUSES));
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
