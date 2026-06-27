@@ -966,12 +966,13 @@ function TaskBoard({
   return (
     <>
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex h-full min-w-max gap-5">
+      <div className="h-full overflow-auto rounded-2xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex min-w-max items-start gap-5">
         {visibleStatuses.map((colId) => {
           const colTasks = tasks.filter(t => t.status === colId).sort((a, b) => a.position - b.position);
           const config   = STATUS_CONFIG[colId];
           return (
-            <div key={colId} className="flex h-full w-80 shrink-0 flex-col rounded-2xl border border-border/60 bg-muted/30">
+            <div key={colId} className="flex w-80 shrink-0 flex-col rounded-2xl border border-border/60 bg-card/70">
               <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-3.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{config.label}</span>
@@ -991,7 +992,7 @@ function TaskBoard({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={clsx(
-                      "flex-1 min-h-0 space-y-2.5 overflow-y-auto px-2.5 pb-2 pt-0.5 transition-colors",
+                      "space-y-2.5 px-2.5 pb-2 pt-0.5 transition-colors min-h-[80px]",
                       snapshot.isDraggingOver && "bg-primary/[0.04]"
                     )}
                   >
@@ -1025,6 +1026,7 @@ function TaskBoard({
             </div>
           );
         })}
+        </div>
       </div>
     </DragDropContext>
 
