@@ -966,13 +966,13 @@ function TaskBoard({
   return (
     <>
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-5 items-start min-w-max pb-8">
+      <div className="flex h-full min-w-max gap-5">
         {visibleStatuses.map((colId) => {
           const colTasks = tasks.filter(t => t.status === colId).sort((a, b) => a.position - b.position);
           const config   = STATUS_CONFIG[colId];
           return (
-            <div key={colId} className="flex w-80 shrink-0 flex-col rounded-2xl border border-border/60 bg-muted/30">
-              <div className="flex items-center justify-between px-4 pb-3 pt-3.5">
+            <div key={colId} className="flex h-full w-80 shrink-0 flex-col rounded-2xl border border-border/60 bg-muted/30">
+              <div className="flex shrink-0 items-center justify-between px-4 pb-3 pt-3.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{config.label}</span>
                   <span className={clsx(
@@ -991,7 +991,7 @@ function TaskBoard({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={clsx(
-                      "flex-1 space-y-2.5 px-2.5 pb-2 transition-colors min-h-[120px]",
+                      "flex-1 min-h-0 space-y-2.5 overflow-y-auto px-2.5 pb-2 pt-0.5 transition-colors",
                       snapshot.isDraggingOver && "bg-primary/[0.04]"
                     )}
                   >
@@ -1018,7 +1018,7 @@ function TaskBoard({
               <button
                 type="button"
                 onClick={() => onAddTask(colId)}
-                className="m-2.5 mt-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+                className="m-2.5 mt-1 flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
               >
                 <Plus className="h-4 w-4" /> New Task
               </button>
