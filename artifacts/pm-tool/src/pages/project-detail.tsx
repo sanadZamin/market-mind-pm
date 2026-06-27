@@ -41,7 +41,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -137,6 +136,7 @@ export default function ProjectDetail() {
   const [view, setView]                 = useState("board");
   const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(() => new Set(DEFAULT_TASK_STATUSES));
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createStatus, setCreateStatus] = useState<TaskStatus | undefined>(undefined);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState(false);
@@ -664,7 +664,7 @@ export default function ProjectDetail() {
               <Button variant="outline" onClick={() => setIsImportOpen(true)} className="rounded-xl h-10 px-4 gap-2">
                 <FileSpreadsheet className="w-4 h-4" /> Import Excel
               </Button>
-              <Button onClick={() => setIsCreateOpen(true)} className="rounded-xl shadow-lg shadow-primary/20 h-10 px-5 gap-2">
+              <Button onClick={() => { setCreateStatus(undefined); setIsCreateOpen(true); }} className="rounded-xl shadow-lg shadow-primary/20 h-10 px-5 gap-2">
                 <Plus className="w-4 h-4" /> Add Task
               </Button>
             </div>
@@ -694,6 +694,7 @@ export default function ProjectDetail() {
                 visibleStatuses={visibleStatuses}
                 projectId={projectId}
                 onTaskClick={setSelectedTaskId}
+                onAddTask={(status) => { setCreateStatus(status); setIsCreateOpen(true); }}
                 users={users || []}
               />
             )}
@@ -721,7 +722,7 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      <CreateTaskDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} projectId={projectId} users={users || []} />
+      <CreateTaskDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} projectId={projectId} users={users || []} defaultStatus={createStatus} />
       <ExcelImportDialog open={isImportOpen} onOpenChange={setIsImportOpen} projectId={projectId} />
       <TaskDetailSheet
         taskId={selectedTaskId}
@@ -916,12 +917,14 @@ function TaskBoard({
   visibleStatuses,
   projectId,
   onTaskClick,
+  onAddTask,
   users,
 }: {
   tasks: Task[];
   visibleStatuses: TaskStatus[];
   projectId: number;
   onTaskClick: (id: number) => void;
+  onAddTask: (status: TaskStatus) => void;
   users: User[];
 }) {
   const queryClient = useQueryClient();
@@ -963,18 +966,23 @@ function TaskBoard({
   return (
     <>
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-6 items-start min-w-max pb-8">
+      <div className="flex gap-5 items-start min-w-max pb-8">
         {visibleStatuses.map((colId) => {
           const colTasks = tasks.filter(t => t.status === colId).sort((a, b) => a.position - b.position);
           const config   = STATUS_CONFIG[colId];
           return (
-            <div key={colId} className="flex flex-col w-80 shrink-0">
-              <div className="flex items-center justify-between mb-4">
+            <div key={colId} className="flex w-80 shrink-0 flex-col rounded-2xl border border-border/60 bg-muted/30">
+              <div className="flex items-center justify-between px-4 pb-3 pt-3.5">
                 <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${config.dot}`} />
-                  <h3 className="font-semibold text-foreground">{config.label}</h3>
-                  <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{config.label}</span>
+                  <span className={clsx(
+                    "flex h-5 min-w-[1.25rem] items-center justify-center rounded-full border px-1.5 text-[11px] font-semibold",
+                    config.bg, config.color
+                  )}>
+                    {colTasks.length}
+                  </span>
                 </div>
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground/50" />
               </div>
 
               <Droppable droppableId={colId}>
@@ -983,8 +991,8 @@ function TaskBoard({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={clsx(
-                      "p-2 -m-2 rounded-2xl transition-colors min-h-[150px]",
-                      snapshot.isDraggingOver && "bg-secondary/40 border-2 border-dashed border-primary/30"
+                      "flex-1 space-y-2.5 px-2.5 pb-2 transition-colors min-h-[120px]",
+                      snapshot.isDraggingOver && "bg-primary/[0.04]"
                     )}
                   >
                     {colTasks.map((task, index) => (
@@ -994,7 +1002,6 @@ function TaskBoard({
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className="mb-3"
                             style={{ ...provided.draggableProps.style }}
                             onClick={() => !snapshot.isDragging && onTaskClick(task.id)}
                           >
@@ -1007,6 +1014,14 @@ function TaskBoard({
                   </div>
                 )}
               </Droppable>
+
+              <button
+                type="button"
+                onClick={() => onAddTask(colId)}
+                className="m-2.5 mt-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> New Task
+              </button>
             </div>
           );
         })}
@@ -1046,60 +1061,63 @@ function TaskBoard({
 }
 
 function KanbanCard({ task, isDragging }: { task: Task; isDragging: boolean }) {
-  const isBlocked   = (task.blockedByIds?.length ?? 0) > 0;
+  const isBlocked    = (task.blockedByIds?.length ?? 0) > 0;
   const subtaskCount = task.subtaskCount ?? 0;
-  const isOverdue = task.dueDate && isPast(new Date(task.dueDate)) && task.status !== "done";
-  const isDueToday = task.dueDate && isToday(new Date(task.dueDate));
+  const isOverdue    = task.dueDate && isPast(new Date(task.dueDate)) && task.status !== "done";
+  const isDueToday   = task.dueDate && isToday(new Date(task.dueDate));
+  const isInProgress = task.status === "in_progress";
+  const hasMeta      = !!task.dueDate || subtaskCount > 0 || isBlocked;
 
   return (
-    <Card className={clsx(
-      "border border-border/50 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all cursor-pointer bg-card/95 backdrop-blur",
-      isDragging && "shadow-xl border-primary scale-105 rotate-2 z-50 opacity-90"
+    <div className={clsx(
+      "group cursor-pointer rounded-xl border border-border/60 bg-card p-3.5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md",
+      isInProgress && "border-l-[3px] border-l-primary",
+      isDragging && "rotate-1 border-primary shadow-xl"
     )}>
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <Badge variant="outline" className={`text-[10px] uppercase border-none ${PRIORITY_CONFIG[task.priority]}`}>
-            {task.priority}
-          </Badge>
-          <div className="flex items-center gap-1">
-            {isBlocked && (
-              <span className="flex items-center gap-0.5 text-[10px] text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded-full border border-orange-400/20">
-                <AlertTriangle className="w-2.5 h-2.5" /> Blocked
-              </span>
-            )}
-            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-          </div>
-        </div>
-
-        <h4 className="font-semibold text-sm mb-3 leading-snug">{task.title}</h4>
-
-        {subtaskCount > 0 && (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
-            <CheckSquare className="w-3 h-3" />
-            <span>{subtaskCount} subtask{subtaskCount !== 1 ? "s" : ""}</span>
-          </div>
+      <div className="flex items-start justify-between gap-2">
+        <Badge variant="outline" className={`rounded-md border-none px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${PRIORITY_CONFIG[task.priority]}`}>
+          {task.priority}
+        </Badge>
+        {isBlocked && (
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
         )}
+      </div>
 
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center text-xs">
-            {task.dueDate && (
+      <h4 className="mt-2.5 line-clamp-2 text-sm font-medium leading-snug text-foreground">{task.title}</h4>
+
+      {(hasMeta || task.assignee) && (
+        <div className="mt-3.5 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+            {isOverdue ? (
+              <span className="flex items-center gap-1 font-medium text-red-400">
+                <Clock className="h-3.5 w-3.5" /> Overdue
+              </span>
+            ) : task.dueDate ? (
               <span className={clsx(
-                "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px]",
-                isOverdue ? "text-red-400 bg-red-400/10" : isDueToday ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground"
+                "flex items-center gap-1",
+                isDueToday ? "font-medium text-amber-400" : "text-muted-foreground"
               )}>
-                <Clock className="w-3 h-3" />
+                <CalendarIcon className="h-3.5 w-3.5" />
                 {format(new Date(task.dueDate), "MMM d")}
               </span>
+            ) : null}
+            {subtaskCount > 0 && (
+              <span className="flex items-center gap-1">
+                <CheckSquare className="h-3.5 w-3.5" />
+                {subtaskCount}
+              </span>
             )}
           </div>
-          <Avatar className="w-7 h-7 border border-border">
-            <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
-              {task.assignee?.name?.charAt(0) || "?"}
-            </AvatarFallback>
-          </Avatar>
+          {task.assignee && (
+            <Avatar className="h-6 w-6 border border-border/70">
+              <AvatarFallback className="bg-primary/15 text-[10px] font-medium text-primary">
+                {task.assignee?.name?.charAt(0)?.toUpperCase() || "?"}
+              </AvatarFallback>
+            </Avatar>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
 
@@ -2031,7 +2049,7 @@ function TaskGantt({
 }
 
 // ─── CREATE TASK DIALOG ────────────────────────────────────────────────────────
-function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
+function CreateTaskDialog({ open, onOpenChange, projectId, users, defaultStatus }: any) {
   const mutation   = useCreateTask();
   const queryClient = useQueryClient();
   const { toast }  = useToast();
@@ -2041,6 +2059,13 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
     resolver: zodResolver(taskSchema),
     defaultValues: { status: "todo", priority: "medium", description: "" },
   });
+
+  // Preselect the column's status (and reset prior input) each time the dialog opens.
+  useEffect(() => {
+    if (open) {
+      form.reset({ status: defaultStatus ?? "todo", priority: "medium", description: "" });
+    }
+  }, [open, defaultStatus]);
 
   const handleRephraseNewTaskDescription = async () => {
     const title = (form.getValues("title") || "").trim();
@@ -2142,7 +2167,7 @@ function CreateTaskDialog({ open, onOpenChange, projectId, users }: any) {
             <div className="space-y-2">
               <Label>Status</Label>
               <Controller control={form.control} name="status" render={({ field }) => (
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todo">To Do</SelectItem>
