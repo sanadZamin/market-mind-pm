@@ -79,7 +79,7 @@ const features = [
     id: "ai",
     title: "AI description rephrase",
     blurb:
-      "Polish project descriptions with your Ollama model—concise, professional wording without leaving the editor.",
+      "Polish project descriptions with AI—concise, professional wording without leaving the editor.",
     Icon: Sparkles,
     tint: "from-fuchsia-500/20 to-purple-600/10",
     mock: "ai",

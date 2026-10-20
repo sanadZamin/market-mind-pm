@@ -4,7 +4,7 @@ import com.marketmind.pmapi.model.Project;
 import com.marketmind.pmapi.repository.ProjectRepository;
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
 import com.marketmind.pmapi.config.PmToolProperties;
-import com.marketmind.pmapi.service.OllamaClient;
+import com.marketmind.pmapi.service.OpenAiClient;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -20,18 +20,18 @@ import java.util.Optional;
 @RequestMapping("/projects")
 public class ProjectsController {
   private final ProjectRepository projectRepository;
-  private final OllamaClient ollamaClient;
+  private final OpenAiClient openAiClient;
   private final TeamUpdateEmailService teamUpdateEmailService;
   private final PmToolProperties pmToolProperties;
 
   public ProjectsController(
       ProjectRepository projectRepository,
-      OllamaClient ollamaClient,
+      OpenAiClient openAiClient,
       TeamUpdateEmailService teamUpdateEmailService,
       PmToolProperties pmToolProperties
   ) {
     this.projectRepository = projectRepository;
-    this.ollamaClient = ollamaClient;
+    this.openAiClient = openAiClient;
     this.teamUpdateEmailService = teamUpdateEmailService;
     this.pmToolProperties = pmToolProperties;
   }
@@ -74,7 +74,7 @@ public class ProjectsController {
   }
 
   /**
-   * Rephrase a description before the project exists (create flow). Uses the same Ollama prompt as
+   * Rephrase a description before the project exists (create flow). Uses the same prompt as
    * {@link #rephraseDescription} but takes the working title from the request body.
    */
   @PostMapping("/rephrase-description")
@@ -92,7 +92,7 @@ public class ProjectsController {
     }
 
     try {
-      String rewritten = ollamaClient.rephraseProjectDescription(name, description);
+      String rewritten = openAiClient.rephraseProjectDescription(name, description);
       return ResponseEntity.ok(Map.of("description", rewritten));
     } catch (Exception e) {
       String msg = e.getMessage();
@@ -191,7 +191,7 @@ public class ProjectsController {
     }
 
     try {
-      String rewritten = ollamaClient.rephraseProjectDescription(project.name, description);
+      String rewritten = openAiClient.rephraseProjectDescription(project.name, description);
       return ResponseEntity.ok(Map.of("description", rewritten));
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)

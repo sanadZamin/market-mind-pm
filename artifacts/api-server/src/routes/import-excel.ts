@@ -6,12 +6,10 @@ import { eq, or, ilike, inArray, isNull, and } from "drizzle-orm";
 import { requireAuth, AuthenticatedRequest } from "../middlewares/auth.js";
 import { sendTeamUpdateEmail } from "../lib/notifications.js";
 import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
+import { callOpenAi } from "../lib/openai.js";
 
 const router: IRouter = Router({ mergeParams: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://149.102.140.178:7869";
-const OLLAMA_MODEL    = process.env.OLLAMA_MODEL    ?? "qwen3.5:0.8b";
 
 router.use(requireAuth as any);
 
@@ -288,24 +286,7 @@ Return ONLY a valid JSON array of task objects with these exact fields: title, d
       }
     } else {
       try {
-        const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: OLLAMA_MODEL,
-            prompt,
-            stream: false,
-            options: { temperature: 0.1 },
-          }),
-          signal: AbortSignal.timeout(15_000),
-        });
-
-        if (!ollamaResponse.ok) {
-          throw new Error(`Ollama responded with status ${ollamaResponse.status}`);
-        }
-
-        const ollamaData = (await ollamaResponse.json()) as { response: string };
-        const raw = ollamaData.response.trim();
+        const raw = await callOpenAi(prompt, { temperature: 0.1, timeoutMs: 60_000 });
 
         const jsonMatch = raw.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error("LLM response did not contain a JSON array");

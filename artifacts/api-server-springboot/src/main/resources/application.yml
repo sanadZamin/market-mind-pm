@@ -48,11 +48,11 @@ spring:
     username: ${SMTP_USER:}
     password: ${SMTP_PASS:${RESEND_API_KEY:}}
 
-# Ollama
-ollama:
-  baseUrl: ${OLLAMA_BASE_URL:http://149.102.140.178:7869}
-  model: ${OLLAMA_MODEL:qwen3.5:0.8b}
-  think: ${OLLAMA_THINK:false}
+# OpenAI (AI rephrase + Excel import mapping). OPENAI_BASE_URL also works with any OpenAI-compatible API.
+openai:
+  apiKey: ${OPENAI_API_KEY:}
+  baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  model: ${OPENAI_MODEL:gpt-4o-mini}
 
 # Email toggle
 email:

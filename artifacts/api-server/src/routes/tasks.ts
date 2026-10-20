@@ -13,9 +13,9 @@ import { allowTeamUpdateEmailDedupe, stableTaskSnapshotForDedupe } from "../lib/
 import { resolvePmToolBaseUrl } from "../lib/pm-tool-base-url.js";
 import {
   buildTaskRephrasePrompt,
-  callOllamaForRephrase,
-  rephraseOllamaTimeoutMs,
-} from "../lib/rephrase-ollama.js";
+  callOpenAiForRephrase,
+  openAiTimeoutMs,
+} from "../lib/openai.js";
 
 const router: IRouter = Router({ mergeParams: true });
 const getTaskLink = (projectId: number, taskId: number) =>
@@ -136,17 +136,17 @@ router.post("/projects/:projectId/tasks/rephrase-description", async (req: Authe
   const title = titleRaw.length > 0 ? titleRaw : "Untitled task";
   const prompt = buildTaskRephrasePrompt(title, description);
   try {
-    const rewritten = await callOllamaForRephrase(prompt);
+    const rewritten = await callOpenAiForRephrase(prompt);
     res.json({ description: rewritten });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const aborted =
       (err as { name?: string })?.name === "AbortError" || /abort/i.test(message);
     console.error("[tasks/rephrase-description]", message);
-    if (message.startsWith("Ollama ") || message === "LLM returned invalid JSON" || message === "LLM returned empty response") {
-      const isOllamaHttp = message.startsWith("Ollama ");
+    if (message.startsWith("OpenAI ") || message === "LLM returned invalid JSON" || message === "LLM returned empty response") {
+      const isOpenAiHttp = message.startsWith("OpenAI ");
       res.status(502).json(
-        isOllamaHttp
+        isOpenAiHttp
           ? { error: "LLM request failed", message }
           : { error: message },
       );
@@ -155,7 +155,7 @@ router.post("/projects/:projectId/tasks/rephrase-description", async (req: Authe
     res.status(502).json({
       error: "Failed to rephrase description",
       message: aborted
-        ? `LLM request timed out after ${rephraseOllamaTimeoutMs() / 1000}s. Increase OLLAMA_TIMEOUT_MS (e.g. 600000), warm the model on the Ollama host, or fix any proxy_read_timeout in front of Ollama.`
+        ? `LLM request timed out after ${openAiTimeoutMs() / 1000}s. Increase OPENAI_TIMEOUT_MS or try again.`
         : message,
     });
   }
@@ -179,17 +179,17 @@ router.post("/tasks/:taskId/rephrase-description", async (req: AuthenticatedRequ
   }
   const prompt = buildTaskRephrasePrompt(task.title, description);
   try {
-    const rewritten = await callOllamaForRephrase(prompt);
+    const rewritten = await callOpenAiForRephrase(prompt);
     res.json({ description: rewritten });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const aborted =
       (err as { name?: string })?.name === "AbortError" || /abort/i.test(message);
     console.error("[tasks/:taskId/rephrase-description]", message);
-    if (message.startsWith("Ollama ") || message === "LLM returned invalid JSON" || message === "LLM returned empty response") {
-      const isOllamaHttp = message.startsWith("Ollama ");
+    if (message.startsWith("OpenAI ") || message === "LLM returned invalid JSON" || message === "LLM returned empty response") {
+      const isOpenAiHttp = message.startsWith("OpenAI ");
       res.status(502).json(
-        isOllamaHttp
+        isOpenAiHttp
           ? { error: "LLM request failed", message }
           : { error: message },
       );
@@ -198,7 +198,7 @@ router.post("/tasks/:taskId/rephrase-description", async (req: AuthenticatedRequ
     res.status(502).json({
       error: "Failed to rephrase description",
       message: aborted
-        ? `LLM request timed out after ${rephraseOllamaTimeoutMs() / 1000}s. Increase OLLAMA_TIMEOUT_MS (e.g. 600000), warm the model on the Ollama host, or fix any proxy_read_timeout in front of Ollama.`
+        ? `LLM request timed out after ${openAiTimeoutMs() / 1000}s. Increase OPENAI_TIMEOUT_MS or try again.`
         : message,
     });
   }

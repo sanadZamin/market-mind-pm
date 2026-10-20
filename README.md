@@ -79,9 +79,10 @@ Email notifications:
 - `EMAIL_LOGO_PATH` (optional local path)
 - `EMAIL_LOGO_URL` (optional fallback URL)
 
-Excel import LLM mapping:
-- `OLLAMA_BASE_URL` (default: `http://149.102.140.178:7869`)
-- `OLLAMA_MODEL` (default: `qwen3.5:0.8b`)
+AI features (description rephrase + Excel import mapping):
+- `OPENAI_API_KEY` (required for AI features)
+- `OPENAI_MODEL` (default: `gpt-4o-mini`)
+- `OPENAI_BASE_URL` (optional, default: `https://api.openai.com/v1`; any OpenAI-compatible endpoint works)
 
 ### Frontend (`artifacts/pm-tool/.env`)
 
@@ -90,18 +91,19 @@ Excel import LLM mapping:
 - `API_PORT` (optional, local API proxy target; default 8080 in config)
 - `VITE_PM_SIGNIN_PATH` (optional, build-time path segment for sign-in; default `mm-workbench`, so sign-in is at `/${segment}` under your app base—there is no public `/login` route)
 
-## Qwen LLM Usage
+## OpenAI Usage
 
-The API includes LLM-assisted Excel mapping in:
-- `artifacts/api-server/src/routes/import-excel.ts`
+The API uses OpenAI chat completions for:
+- **AI Rephrase** of project and task descriptions
+- **Excel import mapping** when spreadsheet headers can't be matched deterministically
 
 Behavior:
 - Reads uploaded Excel rows.
-- If deterministic headers are not sufficient, calls Ollama to map rows to task fields.
-- Uses `OLLAMA_MODEL` (default `qwen3.5:0.8b`) and `OLLAMA_BASE_URL`.
+- If deterministic headers are not sufficient, calls OpenAI to map rows to task fields.
+- Uses `OPENAI_MODEL` (default `gpt-4o-mini`) with `OPENAI_API_KEY`.
 - Returns normalized tasks for import.
 
-If Ollama/LLM is unavailable, the route falls back to heuristic parsing and still returns usable data.
+If OpenAI is unavailable, Excel import falls back to heuristic parsing and still returns usable data; AI Rephrase returns an error message to the UI.
 
 ## Build
 

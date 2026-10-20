@@ -21,34 +21,27 @@ import java.util.*;
 
 import com.marketmind.pmapi.config.BearerAuthInterceptor;
 import com.marketmind.pmapi.config.PmToolProperties;
+import com.marketmind.pmapi.service.OpenAiClient;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 
 @RestController
 public class ImportExcelController {
   private final JdbcTemplate jdbcTemplate;
   private final ObjectMapper objectMapper;
-  private final RestTemplate restTemplate;
+  private final OpenAiClient openAiClient;
   private final TeamUpdateEmailService teamUpdateEmailService;
   private final PmToolProperties pmToolProperties;
-
-  @Value("${ollama.baseUrl}")
-  private String ollamaBaseUrl;
-
-  @Value("${ollama.model}")
-  private String ollamaModel;
-
-  @Value("${ollama.think:false}")
-  private boolean ollamaThink;
 
   public ImportExcelController(
       JdbcTemplate jdbcTemplate,
       ObjectMapper objectMapper,
+      OpenAiClient openAiClient,
       TeamUpdateEmailService teamUpdateEmailService,
       PmToolProperties pmToolProperties
   ) {
     this.jdbcTemplate = jdbcTemplate;
     this.objectMapper = objectMapper;
-    this.restTemplate = new RestTemplate();
+    this.openAiClient = openAiClient;
     this.teamUpdateEmailService = teamUpdateEmailService;
     this.pmToolProperties = pmToolProperties;
   }
@@ -450,20 +443,7 @@ public class ImportExcelController {
         "Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, startDate, dueDate. " +
         "No explanation, no markdown, just the JSON array.";
 
-    Map<String, Object> body = new HashMap<>();
-    body.put("model", ollamaModel);
-    body.put("prompt", prompt);
-    body.put("stream", false);
-    body.put("keep_alive", "30m");
-    body.put("options", Map.of("temperature", 0.1));
-    body.put("think", ollamaThink);
-
-    JsonNode resp = restTemplate.postForObject(ollamaBaseUrl + "/api/generate", body, JsonNode.class);
-    if (resp == null) throw new RuntimeException("Ollama returned empty response");
-
-    JsonNode responseField = resp.get("response");
-    if (responseField == null) throw new RuntimeException("Ollama response missing `response` field");
-    String raw = responseField.asText().trim();
+    String raw = openAiClient.chat(prompt, 0.1, 0);
 
     java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[[\\s\\S]*\\]").matcher(raw);
     if (!m.find()) throw new RuntimeException("LLM response did not contain a JSON array");

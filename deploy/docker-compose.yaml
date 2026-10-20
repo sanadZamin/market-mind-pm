@@ -10,9 +10,6 @@ services:
     environment:
       PORT: 8081
       EMAIL_LOGO_PATH: /app/assets/logo.png
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://149.102.140.178:7869}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
-      OLLAMA_THINK: ${OLLAMA_THINK:-false}
     expose:
       - "8081/tcp"
     healthcheck:

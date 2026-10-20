@@ -5,30 +5,37 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.Duration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
-public class OllamaClient {
+public class OpenAiClient {
   private final RestTemplate restTemplate;
+  private final ObjectMapper objectMapper;
 
-  @Value("${ollama.baseUrl}")
+  @Value("${openai.apiKey:}")
+  private String apiKey;
+
+  @Value("${openai.baseUrl:https://api.openai.com/v1}")
   private String baseUrl;
 
-  @Value("${ollama.model}")
+  @Value("${openai.model:gpt-4o-mini}")
   private String model;
 
-  @Value("${ollama.think:false}")
-  private boolean think;
-
-  public OllamaClient() {
-    this.restTemplate = new RestTemplate();
+  public OpenAiClient(ObjectMapper objectMapper) {
+    SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+    factory.setConnectTimeout(10_000);
+    factory.setReadTimeout(180_000);
+    this.restTemplate = new RestTemplate(factory);
+    this.objectMapper = objectMapper;
   }
 
   public String rephraseProjectDescription(String projectName, String originalDescription) {
@@ -44,33 +51,9 @@ public class OllamaClient {
         projectName,
         originalDescription
     );
-
-    Map<String, Object> body = new HashMap<>();
-    body.put("model", model);
-    body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-    body.put("stream", false);
-    body.put("keep_alive", "30m");
-    body.put("think", think);
-    body.put("options", Map.of("temperature", 0.25, "num_predict", 380));
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
-    String url = baseUrl + "/api/chat";
-    ResponseEntity<JsonNode> resp = restTemplate.postForEntity(url, entity, JsonNode.class);
-    if (!resp.getStatusCode().is2xxSuccessful()) {
-      throw new IllegalStateException("Ollama request failed: " + resp.getStatusCode());
-    }
-
-    JsonNode content = resp.getBody() != null ? resp.getBody().get("message") : null;
-    if (content == null || content.get("content") == null) {
-      throw new IllegalStateException("Ollama returned empty/invalid response");
-    }
-    return content.get("content").asText().trim();
+    return chat(prompt, 0.25, 500);
   }
 
-  /** Same Ollama transport as {@link #rephraseProjectDescription}; prompt tuned for task notes / scope text. */
   public String rephraseTaskDescription(String taskTitle, String originalDescription) {
     String safeTitle =
         taskTitle == null || taskTitle.isBlank() ? "Untitled task" : taskTitle.trim();
@@ -86,30 +69,66 @@ public class OllamaClient {
             + "\n"
             + "Original description:\n"
             + originalDescription;
+    return chat(prompt, 0.25, 500);
+  }
+
+  /** Single-turn chat completion. Pass {@code maxTokens <= 0} to let the model decide the length. */
+  public String chat(String prompt, double temperature, int maxTokens) {
+    if (apiKey == null || apiKey.isBlank()) {
+      throw new IllegalStateException("OPENAI_API_KEY is not set on the API server");
+    }
 
     Map<String, Object> body = new HashMap<>();
     body.put("model", model);
     body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-    body.put("stream", false);
-    body.put("keep_alive", "30m");
-    body.put("think", think);
-    body.put("options", Map.of("temperature", 0.25, "num_predict", 380));
+    if (supportsTemperature(model)) {
+      body.put("temperature", temperature);
+    }
+    if (maxTokens > 0) {
+      body.put("max_completion_tokens", maxTokens);
+    }
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
-    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+    headers.setBearerAuth(apiKey);
 
-    String url = baseUrl + "/api/chat";
-    ResponseEntity<JsonNode> resp = restTemplate.postForEntity(url, entity, JsonNode.class);
-    if (!resp.getStatusCode().is2xxSuccessful()) {
-      throw new IllegalStateException("Ollama request failed: " + resp.getStatusCode());
+    JsonNode resp;
+    try {
+      resp = restTemplate.postForObject(
+          trimTrailingSlash(baseUrl) + "/chat/completions",
+          new HttpEntity<>(body, headers),
+          JsonNode.class
+      );
+    } catch (HttpStatusCodeException e) {
+      throw new IllegalStateException(
+          "OpenAI " + e.getStatusCode().value() + ": " + extractErrorMessage(e.getResponseBodyAsString()), e);
     }
 
-    JsonNode content = resp.getBody() != null ? resp.getBody().get("message") : null;
-    if (content == null || content.get("content") == null) {
-      throw new IllegalStateException("Ollama returned empty/invalid response");
+    JsonNode content = resp == null ? null : resp.path("choices").path(0).path("message").path("content");
+    if (content == null || content.isMissingNode() || content.isNull() || content.asText().isBlank()) {
+      throw new IllegalStateException("OpenAI returned an empty response");
     }
-    return content.get("content").asText().trim();
+    return content.asText().trim();
+  }
+
+  // Reasoning models (o-series, gpt-5) reject any temperature other than the default.
+  private static boolean supportsTemperature(String model) {
+    String m = model == null ? "" : model.toLowerCase();
+    return !(m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4") || m.startsWith("gpt-5"));
+  }
+
+  private String extractErrorMessage(String rawBody) {
+    if (rawBody == null || rawBody.isBlank()) return "(no body)";
+    try {
+      JsonNode msg = objectMapper.readTree(rawBody).path("error").path("message");
+      if (!msg.isMissingNode() && !msg.asText().isBlank()) return msg.asText();
+    } catch (Exception ignored) {
+      // fall through to raw body
+    }
+    return rawBody.length() > 500 ? rawBody.substring(0, 500) : rawBody;
+  }
+
+  private static String trimTrailingSlash(String url) {
+    return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 }
-

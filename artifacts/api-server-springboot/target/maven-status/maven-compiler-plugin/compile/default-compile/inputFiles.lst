@@ -33,7 +33,7 @@
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/repository/TaskRepository.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/repository/UserRepository.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/DelayedTaskDigestScheduler.java
-/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/OllamaClient.java
+/Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/OpenAiClient.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskChangeDetector.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskEnrichmentService.java
 /Users/sanadamin/CursorProjects/market-mind-pm/artifacts/api-server-springboot/src/main/java/com/marketmind/pmapi/service/TaskUpdateChangeDescription.java

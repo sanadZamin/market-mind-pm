@@ -8,7 +8,7 @@ import com.marketmind.pmapi.config.PmToolProperties;
 import com.marketmind.pmapi.service.TaskChangeDetector;
 import com.marketmind.pmapi.service.TaskEnrichmentService;
 import com.marketmind.pmapi.service.TaskUpdateChangeDescription;
-import com.marketmind.pmapi.service.OllamaClient;
+import com.marketmind.pmapi.service.OpenAiClient;
 import com.marketmind.pmapi.service.TeamUpdateEmailDedupeService;
 import com.marketmind.pmapi.service.TeamUpdateEmailService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,7 +30,7 @@ public class TasksController {
   private final TeamUpdateEmailService teamUpdateEmailService;
   private final TeamUpdateEmailDedupeService teamUpdateEmailDedupeService;
   private final PmToolProperties pmToolProperties;
-  private final OllamaClient ollamaClient;
+  private final OpenAiClient openAiClient;
 
   public TasksController(
       TaskRepository taskRepository,
@@ -38,14 +38,14 @@ public class TasksController {
       TeamUpdateEmailService teamUpdateEmailService,
       TeamUpdateEmailDedupeService teamUpdateEmailDedupeService,
       PmToolProperties pmToolProperties,
-      OllamaClient ollamaClient
+      OpenAiClient openAiClient
   ) {
     this.taskRepository = taskRepository;
     this.taskEnrichmentService = taskEnrichmentService;
     this.teamUpdateEmailService = teamUpdateEmailService;
     this.teamUpdateEmailDedupeService = teamUpdateEmailDedupeService;
     this.pmToolProperties = pmToolProperties;
-    this.ollamaClient = ollamaClient;
+    this.openAiClient = openAiClient;
   }
 
   /** SPA opens the task sheet when the URL contains {@code ?taskId=}. */
@@ -334,7 +334,7 @@ public class TasksController {
     return ResponseEntity.ok(Map.of("success", true, "message", "Dependency removed"));
   }
 
-  /** Rephrase task body text using Ollama (same stack as project description rephrase). */
+  /** Rephrase task body text using OpenAI (same stack as project description rephrase). */
   @PostMapping("/tasks/{taskId}/rephrase-description")
   public ResponseEntity<?> rephraseTaskDescriptionForExisting(
       @PathVariable int taskId,
@@ -351,7 +351,7 @@ public class TasksController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "description is required"));
     }
     try {
-      String rewritten = ollamaClient.rephraseTaskDescription(task.title, description);
+      String rewritten = openAiClient.rephraseTaskDescription(task.title, description);
       return ResponseEntity.ok(Map.of("description", rewritten));
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
@@ -376,7 +376,7 @@ public class TasksController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "description is required"));
     }
     try {
-      String rewritten = ollamaClient.rephraseTaskDescription(title, description);
+      String rewritten = openAiClient.rephraseTaskDescription(title, description);
       return ResponseEntity.ok(Map.of("description", rewritten));
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
