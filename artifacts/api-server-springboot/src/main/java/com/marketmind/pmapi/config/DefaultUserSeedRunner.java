@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
  * (idempotent). Disable in shared or production environments:
  * {@code PM_SEED_DEFAULT_USER=false}.
  */
+
 @Component
 @ConditionalOnProperty(
     prefix = "pm.seed.default-user",
