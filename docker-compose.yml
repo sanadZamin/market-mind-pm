@@ -12,7 +12,7 @@ services:
       PGPORT: 5432
       PGDATABASE: marketmind
       PGUSER: postgres
-      PGPASSWORD: Jw8S0F4gbxi0zqm7
+      PGPASSWORD: ${PGPASSWORD:?set PGPASSWORD}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-465}
       # Resend requires username exactly "resend"; override if you use a different SMTP provider.

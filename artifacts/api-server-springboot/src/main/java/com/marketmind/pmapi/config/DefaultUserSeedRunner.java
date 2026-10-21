@@ -12,16 +12,14 @@ import org.springframework.stereotype.Component;
 
 /**
  * Inserts a single default user when the DB has no row with the configured email
- * (idempotent). Disable in shared or production environments:
- * {@code PM_SEED_DEFAULT_USER=false}.
+ * (idempotent). Opt in for local development only: {@code PM_SEED_DEFAULT_USER=true}.
  */
 
 @Component
 @ConditionalOnProperty(
     prefix = "pm.seed.default-user",
     name = "enabled",
-    havingValue = "true",
-    matchIfMissing = true)
+    havingValue = "true")
 public class DefaultUserSeedRunner implements ApplicationRunner {
   private static final Logger log = LoggerFactory.getLogger(DefaultUserSeedRunner.class);
 

@@ -14,8 +14,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -23,14 +29,30 @@ public class AuthController {
   private final TokenService tokenService;
   private final UserRepository userRepository;
   private final BCryptPasswordEncoder passwordEncoder;
+  private final boolean registrationEnabled;
+  private final Set<String> allowedDomains;
 
   public AuthController(
       TokenService tokenService,
       UserRepository userRepository,
-      BCryptPasswordEncoder passwordEncoder) {
+      BCryptPasswordEncoder passwordEncoder,
+      @Value("${pm.auth.registration.enabled:false}") boolean registrationEnabled,
+      @Value("${pm.auth.registration.allowed-domains:}") String allowedDomains) {
     this.tokenService = tokenService;
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
+    this.registrationEnabled = registrationEnabled;
+    this.allowedDomains = Arrays.stream(allowedDomains.split(","))
+        .map(d -> d.trim().toLowerCase(Locale.ROOT))
+        .filter(d -> !d.isEmpty())
+        .collect(Collectors.toSet());
+  }
+
+  private boolean isAllowedDomain(String email) {
+    if (allowedDomains.isEmpty()) return true;
+    if (email == null) return false;
+    int at = email.lastIndexOf('@');
+    return at >= 0 && allowedDomains.contains(email.substring(at + 1).trim().toLowerCase(Locale.ROOT));
   }
 
   @PostMapping("/login")
@@ -53,6 +75,14 @@ public class AuthController {
 
   @PostMapping("/register")
   public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+    if (!registrationEnabled) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(Map.of("error", "Registration is closed. Ask an admin for an account."));
+    }
+    if (!isAllowedDomain(request.email)) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(Map.of("error", "Registration is limited to approved email domains."));
+    }
     if (userRepository.findByEmail(request.email).isPresent()) {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email already in use"));
     }

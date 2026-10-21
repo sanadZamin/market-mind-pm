@@ -34,9 +34,9 @@ spring:
     hibernate:
       ddl-auto: none
   datasource:
-    url: jdbc:postgresql://${PGHOST:149.102.140.178}:${PGPORT:5432}/${PGDATABASE:marketmind}
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:marketmind}
     username: ${PGUSER:postgres}
-    password: ${PGPASSWORD:Jw8S0F4gbxi0zqm7}
+    password: ${PGPASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   # Optional: leave host empty locally. JavaMailSender is only created when host is non-blank
@@ -60,10 +60,17 @@ email:
 
 # Notification email links: set PM_TOOL_BASE_URL, or PUBLIC_APP_URL / FRONTEND_URL (see PmToolProperties).
 pm:
-  # Idempotent default login for empty DB (disable in production: PM_SEED_DEFAULT_USER=false)
+  # Self sign-up is closed unless PM_REGISTRATION_ENABLED=true. PM_REGISTRATION_ALLOWED_DOMAINS
+  # (comma-separated, e.g. "marketmind.ai") further limits who can sign up.
+  auth:
+    registration:
+      enabled: ${PM_REGISTRATION_ENABLED:false}
+      allowed-domains: ${PM_REGISTRATION_ALLOWED_DOMAINS:}
+
+  # Idempotent default login for an empty local DB (opt in with PM_SEED_DEFAULT_USER=true; never in production)
   seed:
     default-user:
-      enabled: ${PM_SEED_DEFAULT_USER:true}
+      enabled: ${PM_SEED_DEFAULT_USER:false}
       email: ${PM_DEFAULT_USER_EMAIL:dev@example.com}
       name: ${PM_DEFAULT_USER_NAME:Dev}
       password: ${PM_DEFAULT_USER_PASSWORD:changeme}
