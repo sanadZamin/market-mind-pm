@@ -35,6 +35,7 @@ public class BearerAuthInterceptor implements HandlerInterceptor {
     }
 
 
+    
     // Public endpoints (paßhs are relative to servlet context-path /api)
     if ("/healthz".equals(path)
         || "/auth/login".equals(path)
