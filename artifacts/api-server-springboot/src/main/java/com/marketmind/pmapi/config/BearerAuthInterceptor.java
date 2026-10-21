@@ -21,6 +21,7 @@ public class BearerAuthInterceptor implements HandlerInterceptor {
     this.tokenService = tokenService;
     this.objectMapper = objectMapper;
   }
+  
 
   @Override
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
