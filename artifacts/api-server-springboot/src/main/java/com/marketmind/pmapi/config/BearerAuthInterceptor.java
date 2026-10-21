@@ -21,7 +21,7 @@ public class BearerAuthInterceptor implements HandlerInterceptor {
     this.tokenService = tokenService;
     this.objectMapper = objectMapper;
   }
-  
+
 
   @Override
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -47,6 +47,7 @@ public class BearerAuthInterceptor implements HandlerInterceptor {
       return true;
     }
 
+    
     String authHeader = request.getHeader("Authorization");
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
       response.setStatus(401);
