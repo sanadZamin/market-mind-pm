@@ -63,26 +63,23 @@ public class ImportExcelController {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Excel file has no sheets"));
       }
 
-      Iterator<Row> rowIt = sheet.rowIterator();
-      if (!rowIt.hasNext()) {
+      List<Row> sheetRows = new ArrayList<>();
+      sheet.rowIterator().forEachRemaining(sheetRows::add);
+      if (sheetRows.isEmpty()) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Excel sheet is empty"));
       }
 
-      // Header row
-      Row headerRow = rowIt.next();
+      // Sheets often start with a title or blank rows, so the header isn't necessarily the first row.
+      int headerIdx = findHeaderRowIndex(sheetRows);
+      Row headerRow = sheetRows.get(headerIdx);
       List<String> headers = new ArrayList<>();
-      for (Cell cell : headerRow) {
-        String h = readCellAsString(cell);
-        headers.add(StringUtils.hasText(h) ? h : "");
-      }
-      // Filter out empty header columns by keeping position-based names
-      for (int i = 0; i < headers.size(); i++) {
-        if (!StringUtils.hasText(headers.get(i))) headers.set(i, "Column" + (i + 1));
+      for (int ci = 0; ci < Math.max(headerRow.getLastCellNum(), 0); ci++) {
+        String h = readCellAsString(headerRow.getCell(ci, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL));
+        headers.add(StringUtils.hasText(h) ? h.trim() : "Column" + (ci + 1));
       }
 
       List<Map<String, Object>> rows = new ArrayList<>();
-      while (rowIt.hasNext()) {
-        Row r = rowIt.next();
+      for (Row r : sheetRows.subList(headerIdx + 1, sheetRows.size())) {
         Map<String, Object> row = new LinkedHashMap<>();
         boolean any = false;
         for (int ci = 0; ci < headers.size(); ci++) {
@@ -159,9 +156,31 @@ public class ImportExcelController {
         out.put("assignee", assignee);
         out.put("startDate", startDate);
         out.put("dueDate", dueDate);
-        out.put("parentTask", parentTask);
+        out.put("parentTask", parentTask != null && parentTask.equals(title) ? null : parentTask);
         cleanedTasks.add(out);
       }
+
+      // The bulk endpoint only links subtasks to parents present in the payload, so add any missing ones.
+      Set<String> topLevelTitles = new HashSet<>();
+      for (Map<String, Object> t : cleanedTasks) {
+        if (t.get("parentTask") == null) topLevelTitles.add((String) t.get("title"));
+      }
+      List<Map<String, Object>> missingParents = new ArrayList<>();
+      for (Map<String, Object> t : cleanedTasks) {
+        String p = (String) t.get("parentTask");
+        if (p == null || !topLevelTitles.add(p)) continue;
+        Map<String, Object> parent = new LinkedHashMap<>();
+        parent.put("title", p);
+        parent.put("description", null);
+        parent.put("status", "todo");
+        parent.put("priority", "medium");
+        parent.put("assignee", null);
+        parent.put("startDate", null);
+        parent.put("dueDate", null);
+        parent.put("parentTask", null);
+        missingParents.add(parent);
+      }
+      cleanedTasks.addAll(0, missingParents);
 
       Map<String, Object> resp = new LinkedHashMap<>();
       resp.put("tasks", cleanedTasks);
@@ -437,10 +456,12 @@ public class ImportExcelController {
         "- priority (string): one of \"low\", \"medium\", \"high\", \"urgent\" — infer from any priority column, default to \"medium\"\n" +
         "- assignee (string, optional): the name or email of the person assigned to this task, if present in the data, otherwise null\n" +
         "- startDate (string, optional): ISO date string YYYY-MM-DD if a start date is present, otherwise null\n" +
-        "- dueDate (string, optional): ISO date string YYYY-MM-DD if a due/deadline date is present, otherwise null\n\n" +
+        "- dueDate (string, optional): ISO date string YYYY-MM-DD if a due/deadline date is present, otherwise null\n" +
+        "- parentTask (string, optional): if the row is a subtask of a parent/phase/epic/group column, the exact parent title from that column; otherwise null. " +
+        "When a row has both a parent and a sub task column, title is the sub task and parentTask is the parent.\n\n" +
         "Here is the FULL dataset:\n" +
         objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(rows) + "\n\n" +
-        "Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, startDate, dueDate. " +
+        "Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, startDate, dueDate, parentTask. " +
         "No explanation, no markdown, just the JSON array.";
 
     String raw = openAiClient.chat(prompt, 0.1, 0);
@@ -624,6 +645,34 @@ public class ImportExcelController {
       }
     }
     return null;
+  }
+
+  private static final List<String> HEADER_KEYWORDS = List.of(
+      "task", "title", "name", "parent", "status", "priority", "due", "deadline",
+      "assignee", "owner", "description", "start", "end"
+  );
+
+  /** Header = first row (within the top 30) with 2+ filled cells that looks like column names. */
+  private static int findHeaderRowIndex(List<Row> rows) {
+    int firstMulti = -1;
+    int firstAny = -1;
+    for (int i = 0; i < Math.min(rows.size(), 30); i++) {
+      Row r = rows.get(i);
+      int filled = 0;
+      boolean keyword = false;
+      for (int ci = 0; ci < Math.max(r.getLastCellNum(), 0); ci++) {
+        String v = readCellAsString(r.getCell(ci, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL)).trim();
+        if (v.isEmpty()) continue;
+        filled++;
+        String vn = v.toLowerCase(Locale.ROOT);
+        if (HEADER_KEYWORDS.stream().anyMatch(vn::contains)) keyword = true;
+      }
+      if (filled >= 2 && keyword) return i;
+      if (filled >= 2 && firstMulti < 0) firstMulti = i;
+      if (filled >= 1 && firstAny < 0) firstAny = i;
+    }
+    if (firstMulti >= 0) return firstMulti;
+    return Math.max(firstAny, 0);
   }
 }
 

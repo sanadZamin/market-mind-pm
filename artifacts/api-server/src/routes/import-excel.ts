@@ -98,6 +98,37 @@ type MappedTask = {
   parentTask?: string | null;
 };
 
+const HEADER_KEYWORDS = [
+  "task", "title", "name", "parent", "status", "priority", "due", "deadline",
+  "assignee", "owner", "description", "start", "end",
+];
+
+/** Header = first row (within the top 30) with 2+ filled cells that looks like column names. */
+function readRowsWithDetectedHeader(sheet: XLSX.WorkSheet): Record<string, unknown>[] {
+  const grid: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: false });
+  const isFilled = (v: unknown) => v !== null && v !== undefined && String(v).trim() !== "";
+
+  let headerIdx = -1;
+  let firstMulti = -1;
+  for (let i = 0; i < Math.min(grid.length, 30); i++) {
+    const filled = grid[i].filter(isFilled).map((v) => String(v).trim().toLowerCase());
+    if (filled.length >= 2 && filled.some((v) => HEADER_KEYWORDS.some((k) => v.includes(k)))) {
+      headerIdx = i;
+      break;
+    }
+    if (filled.length >= 2 && firstMulti < 0) firstMulti = i;
+  }
+  if (headerIdx < 0) headerIdx = firstMulti >= 0 ? firstMulti : 0;
+
+  const headerRow = grid[headerIdx] ?? [];
+  const headers = headerRow.map((h, i) => (isFilled(h) ? String(h).trim() : `Column${i + 1}`));
+
+  return grid
+    .slice(headerIdx + 1)
+    .filter((r) => r.some(isFilled))
+    .map((r) => Object.fromEntries(headers.map((h, i) => [h, r[i] ?? ""])));
+}
+
 // ── POST /api/projects/:projectId/import-excel ────────────────────────────────
 router.post(
   "/projects/:projectId/import-excel",
@@ -115,7 +146,7 @@ router.post(
       return;
     }
     const sheet = workbook.Sheets[sheetName];
-    const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const rows = readRowsWithDetectedHeader(sheet);
 
     if (rows.length === 0) {
       res.status(400).json({ error: "Excel sheet is empty" });
@@ -138,11 +169,12 @@ Map each row in the full dataset to a task with these fields:
 - assignee (string, optional): the name or email of the person assigned to this task, if present in the data, otherwise null
 - startDate (string, optional): ISO date string YYYY-MM-DD if a start date is present, otherwise null
 - dueDate (string, optional): ISO date string YYYY-MM-DD if a due/deadline date is present, otherwise null
+- parentTask (string, optional): if the row is a subtask of a parent/phase/epic/group column, the exact parent title from that column; otherwise null. When a row has both a parent and a sub task column, title is the sub task and parentTask is the parent.
 
 Here is the FULL dataset:
 ${JSON.stringify(rows, null, 2)}
 
-Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, startDate, dueDate. No explanation, no markdown, just the JSON array.`;
+Return ONLY a valid JSON array of task objects with these exact fields: title, description, status, priority, assignee, startDate, dueDate, parentTask. No explanation, no markdown, just the JSON array.`;
 
     const normHeader = (s: string) => s.toLowerCase().trim();
     const findHeader = (aliases: string[]) => {
